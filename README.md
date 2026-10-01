@@ -109,7 +109,7 @@
 ### 方式三：直接跑源码
 
 ```bash
-git clone https://github.com/<your-name>/bili-crawler.git
+git clone https://github.com/biolmz/bili-crawler.git
 cd bili-crawler
 pip install yt-dlp requests
 python src/app.py
