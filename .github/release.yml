@@ -1,0 +1,32 @@
+# 自动生成 Release Notes 的分类规则
+# 在 GitHub 上新建 Release 时点「Generate release notes」即按此分类
+changelog:
+  categories:
+    - title: 🚀 新功能
+      labels:
+        - feature
+        - enhancement
+        - 新功能
+    - title: 🐛 Bug 修复
+      labels:
+        - bug
+        - fix
+        - 修复
+    - title: ⚡ 性能与优化
+      labels:
+        - performance
+        - optimization
+        - 优化
+    - title: 📝 文档
+      labels:
+        - documentation
+        - docs
+        - 文档
+    - title: 🔧 构建与依赖
+      labels:
+        - build
+        - dependencies
+        - ci
+    - title: 其他变更
+      labels:
+        - "*"
