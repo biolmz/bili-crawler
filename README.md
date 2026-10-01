@@ -2,7 +2,7 @@
 
 > Windows 桌面工具。**先解析、再勾选、最后下载**——粘贴链接后先看到完整清单，确认无误才动手。
 
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4?logo=windows)](https://github.com/<your-name>/bili-crawler/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4?logo=windows)](https://github.com/biolmz/bili-crawler/releases)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![GUI](https://img.shields.io/badge/GUI-tkinter-ff69b4)](https://docs.python.org/3/library/tkinter.html)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -96,7 +96,7 @@
 
 ### 方式一：用安装包（推荐）
 
-1. 到 [Releases](https://github.com/<your-name>/bili-crawler/releases) 下载 `BiliCrawler-x.x.x-Setup.exe`
+1. 到 [Releases](https://github.com/biolmz/bili-crawler/releases) 下载 `BiliCrawler-x.x.x-Setup.exe`
 2. 双击运行，向导里**保持 FFmpeg 组件勾选**（高清晰度必须靠它合并音视频）
 3. 默认装到 `D:\Program Files\BiliCrawler`（无 D 盘则退回 `Program Files`）
 4. 装完自动生成桌面 / 开始菜单快捷方式
