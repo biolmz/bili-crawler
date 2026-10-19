@@ -1,0 +1,24 @@
+[assets] get release -> 200
+[assets] before = 8
+  keep   BiliCrawler-linux-aarch64.tar.gz
+  keep   BiliCrawler-linux-x86_64.tar.gz
+  keep   BiliCrawler-macos-arm64.dmg
+  keep   BiliCrawler-macos-x86_64.dmg
+  keep   BiliCrawler-Setup.exe
+  keep   BiliCrawler-Windows-portable.zip
+  keep   bilicrawler_amd64.deb
+  keep   bilicrawler_arm64.deb
+[assets] after = 8
+  ok BiliCrawler-Setup.exe
+  ok BiliCrawler-Windows-portable.zip
+  ok BiliCrawler-linux-aarch64.tar.gz
+  ok BiliCrawler-linux-x86_64.tar.gz
+  ok BiliCrawler-macos-arm64.dmg
+  ok BiliCrawler-macos-x86_64.dmg
+  ok bilicrawler_amd64.deb
+  ok bilicrawler_arm64.deb
+[assets] missing = none
+
+[pages] GET -> 404
+[pages] POST -> 403
+[pages] body -> "{\"message\":\"Resource not accessible by integration\",\"documentation_url\":\"https://docs.github.com/rest/pages/pages#create-a-apiname-pages-site\",\"status\":\"403\"}"
