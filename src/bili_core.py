@@ -43,6 +43,7 @@ APP_VERSION = "1.1.0"
 # 平台判定：Windows / macOS / 其它（Linux）共用同一套代码，差异集中在路径与外部程序名
 IS_WIN = sys.platform.startswith("win")
 IS_MAC = sys.platform == "darwin"
+IS_LINUX = not IS_WIN and not IS_MAC
 
 UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -139,7 +140,7 @@ def data_dir() -> str:
 
 def default_download_dir() -> str:
     """默认下载目录。"""
-    if IS_MAC:
+    if IS_MAC or IS_LINUX:
         for p in (os.path.join(os.path.expanduser("~"), "Downloads"),
                   os.path.expanduser("~")):
             p = os.path.join(p, "BiliDownloads")
@@ -148,7 +149,7 @@ def default_download_dir() -> str:
                 return p
             except OSError:
                 pass
-    else:
+    elif IS_WIN:
         for drive in ("D:\\", "E:\\"):
             if os.path.isdir(drive):
                 p = os.path.join(drive, "BiliDownloads")

@@ -1,0 +1,77 @@
+name: build-linux
+
+# 在 GitHub 的 Linux 机器上打 tar.gz / deb（Windows、macOS 都无法交叉编译）
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "assets/app.png"
+      - "gen_icon.py"
+      - "packaging/linux/**"
+      - ".github/workflows/build-linux.yml"
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Linux ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04      # glibc 2.35，兼容 Ubuntu 22.04+ / Debian 12+
+            arch: x86_64
+          - os: ubuntu-22.04-arm  # ARM64（树莓派 4/5、ARM 服务器）
+            arch: aarch64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装系统依赖
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3 python3-venv python3-tk xvfb
+          python3 -c "import tkinter, sys; print(sys.version.split()[0], '| Tk', tkinter.TkVersion)"
+          uname -m
+
+      - name: 构建 tar.gz 与 deb
+        run: bash packaging/linux/build_linux.sh
+
+      - name: 启动自检（xvfb 虚拟屏幕下真建一次窗口）
+        continue-on-error: true
+        run: |
+          xvfb-run -a dist/BiliCrawler/BiliCrawler --self-test
+
+      - name: 校验产物
+        run: |
+          file dist/BiliCrawler/BiliCrawler
+          ls -lh dist/*.tar.gz dist/*.deb
+          if command -v dpkg-deb >/dev/null; then
+            dpkg-deb -I dist/*.deb | head -20
+            dpkg-deb -c dist/*.deb | head -10
+          fi
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: BiliCrawler-linux-${{ matrix.arch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.deb
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: 附加到 Release
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.deb
+          fail_on_unmatched_files: false

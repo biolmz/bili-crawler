@@ -12,10 +12,13 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import queue
 import re
+import shutil
 import subprocess
 import sys
+import tarfile
 import threading
 import time
 import traceback
@@ -48,6 +51,7 @@ from bili_core import (  # noqa: E402
 
 IS_WIN = sys.platform.startswith("win")
 IS_MAC = sys.platform == "darwin"
+IS_LINUX = not IS_WIN and not IS_MAC
 
 # ======================================================================
 # 主题
@@ -70,11 +74,28 @@ if IS_MAC:
     FONT = "PingFang SC"
     MONO = "Menlo"
     FFMPEG_URL = "https://evermeet.cx/ffmpeg/getrelease/zip"
+    FFMPEG_PKG = "zip"
     FFMPEG_PKG_HINT = "macOS（解压后得到单文件 ffmpeg）"
+elif IS_LINUX:
+    FONT = "Noto Sans CJK SC"
+    MONO = "DejaVu Sans Mono"
+    _machine = platform.machine().lower()
+    if _machine in ("aarch64", "arm64"):
+        FFMPEG_URL = ("https://johnvansickle.com/ffmpeg/releases/"
+                      "ffmpeg-release-arm64-static.tar.xz")
+    elif _machine.startswith("arm"):
+        FFMPEG_URL = ("https://johnvansickle.com/ffmpeg/releases/"
+                      "ffmpeg-release-armhf-static.tar.xz")
+    else:
+        FFMPEG_URL = ("https://johnvansickle.com/ffmpeg/releases/"
+                      "ffmpeg-release-amd64-static.tar.xz")
+    FFMPEG_PKG = "tar.xz"
+    FFMPEG_PKG_HINT = "Linux 静态构建（约 40MB）"
 else:
     FONT = "Microsoft YaHei UI"
     MONO = "Consolas"
     FFMPEG_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+    FFMPEG_PKG = "zip"
     FFMPEG_PKG_HINT = "Windows"
 
 
@@ -83,6 +104,12 @@ def _detect_scale() -> float:
     if IS_MAC:
         # macOS 的 Tk 已按 Retina 逻辑像素渲染，再乘倍率会整体过大
         return 1.0
+    if IS_LINUX:
+        # Tk 不读 GDK 缩放，只在环境变量显式指定时跟随
+        try:
+            return max(1.0, min(float(os.environ.get("GDK_SCALE") or 1.0), 3.0))
+        except ValueError:
+            return 1.0
     try:
         from ctypes import windll
         windll.shcore.SetProcessDpiAwareness(1)
@@ -100,6 +127,53 @@ SCALE = _detect_scale()
 def S(v):
     """把 96-DPI 设计值换算成当前屏幕的像素值。"""
     return int(round(v * SCALE))
+
+def _resolve_fonts():
+    """按系统实际可用字体回退（各 Linux 发行版的中文字体差异很大）。"""
+    global FONT, MONO
+    try:
+        from tkinter import font as tkfont
+        fams = set(tkfont.families())
+    except Exception:
+        return
+    if FONT not in fams:
+        for c in ("Noto Sans CJK SC", "Source Han Sans SC", "WenQuanYi Micro Hei",
+                  "WenQuanYi Zen Hei", "Microsoft YaHei UI", "DejaVu Sans", "Arial"):
+            if c in fams:
+                FONT = c
+                break
+    if MONO not in fams:
+        for c in ("DejaVu Sans Mono", "Liberation Mono", "Menlo", "Consolas",
+                  "Courier New", "DejaVu Sans"):
+            if c in fams:
+                MONO = c
+                break
+
+
+def _extract_ffmpeg(pkg: str, dst: str, name: str) -> str:
+    """从 zip / tar.xz 里取出 ffmpeg 可执行文件，返回落地路径。"""
+    target = os.path.join(dst, name)
+    if pkg.endswith(".zip"):
+        with zipfile.ZipFile(pkg) as z:
+            hits = [n for n in z.namelist()
+                    if not n.endswith("/") and os.path.basename(n) == name]
+            if not hits:
+                raise RuntimeError(f"压缩包内未找到 {name}")
+            with z.open(hits[0]) as src, open(target, "wb") as out:
+                shutil.copyfileobj(src, out, 1048576)
+    else:
+        with tarfile.open(pkg, "r:xz") as t:
+            hits = [m for m in t.getmembers()
+                    if m.isfile() and os.path.basename(m.name) == name]
+            if not hits:
+                raise RuntimeError(f"压缩包内未找到 {name}")
+            src = t.extractfile(hits[0])
+            with src, open(target, "wb") as out:
+                shutil.copyfileobj(src, out, 1048576)
+    if not IS_WIN:
+        os.chmod(target, 0o755)
+    return target
+
 
 MODE_MAP = {"下载视频": "download", "采集数据": "collect", "下载 + 采集": "both"}
 QUALITY_MAP = {
@@ -128,6 +202,7 @@ class Row:
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
+        _resolve_fonts()
         self.title(f"B站视频采集下载器  v{APP_VERSION}")
         self.geometry(f"{S(1120)}x{S(866)}")
         self.minsize(S(1000), S(620))
@@ -548,7 +623,7 @@ class App(tk.Tk):
                 self._log("开始下载 FFmpeg…")
                 dst = os.path.join(data_dir(), "ffmpeg", "bin")
                 os.makedirs(dst, exist_ok=True)
-                tmp = os.path.join(data_dir(), "ffmpeg.zip")
+                tmp = os.path.join(data_dir(), f"ffmpeg.{FFMPEG_PKG}")
                 with requests.get(FFMPEG_URL, stream=True, timeout=60,
                                   headers={"User-Agent": "Mozilla/5.0"}) as r:
                     r.raise_for_status()
@@ -563,21 +638,7 @@ class App(tk.Tk):
                                     got * 100.0 / total,
                                     f"下载 FFmpeg {human_size(got)} / {human_size(total)}")))
                 self._log("解压中…")
-                with zipfile.ZipFile(tmp) as z:
-                    want = bili_core.FFMPEG_BIN
-                    hit = [n for n in z.namelist()
-                           if not n.endswith("/") and os.path.basename(n) == want]
-                    if not hit:
-                        raise RuntimeError(f"压缩包内未找到 {want}")
-                    target = os.path.join(dst, want)
-                    with z.open(hit[0]) as src, open(target, "wb") as out:
-                        while True:
-                            b = src.read(1048576)
-                            if not b:
-                                break
-                            out.write(b)
-                    if not IS_WIN:
-                        os.chmod(target, 0o755)
+                _extract_ffmpeg(tmp, dst, bili_core.FFMPEG_BIN)
                 try:
                     os.remove(tmp)
                 except OSError:

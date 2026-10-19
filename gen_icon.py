@@ -156,3 +156,8 @@ if __name__ == "__main__":
     os.makedirs(out_dir, exist_ok=True)
     build(os.path.join(out_dir, "app.ico"))
     build_icns(os.path.join(out_dir, "app.icns"))
+    # Linux：桌面图标与 .desktop 引用
+    png = os.path.join(out_dir, "app.png")
+    with open(png, "wb") as f:
+        f.write(_png_bytes(512))
+    print(f"icon written: {os.path.abspath(png)}  ({os.path.getsize(png)} bytes)")
