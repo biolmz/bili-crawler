@@ -2,8 +2,9 @@ name: ops-cleanup
 
 # 一次性运维任务：
 #   1. 清理 Release v1.1.1 上旧命名的冗余资产，使资产与下载页 8 个链接一一对应
-#   2. 开启 GitHub Pages（main 分支 /docs 目录），让下载页 https://biolmz.github.io/bili-crawler/ 可访问
-# 跑完即可删除本文件。
+#   2. 尝试开启 GitHub Pages（main 分支 /docs 目录）
+#   3. 把上面的结果写进 ops-report.txt 提交回仓库，便于外部（无需 token）核对
+# 跑完即可删除本文件与 ops-report.txt。
 
 on:
   push:
@@ -19,6 +20,8 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Clean release assets & enable Pages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -34,8 +37,9 @@ jobs:
           REPO = os.environ["REPO"]
           TAG = "v1.1.1"
           BASE = "https://api.github.com"
+          REPORT = []
 
-          KEEP = {
+          KEEP = [
               "BiliCrawler-Setup.exe",
               "BiliCrawler-Windows-portable.zip",
               "BiliCrawler-macos-arm64.dmg",
@@ -44,7 +48,11 @@ jobs:
               "bilicrawler_arm64.deb",
               "BiliCrawler-linux-x86_64.tar.gz",
               "BiliCrawler-linux-aarch64.tar.gz",
-          }
+          ]
+
+          def log(s):
+              print(s)
+              REPORT.append(s)
 
           def api(path, method="GET", payload=None):
               body = json.dumps(payload).encode() if payload is not None else None
@@ -69,49 +77,56 @@ jobs:
 
           # ---------- 1. 清理冗余资产 ----------
           st, rel = api(f"/repos/{REPO}/releases/tags/{TAG}")
-          if st != 200:
-              print(f"!! 取 release 失败 {st}: {rel}")
-              raise SystemExit(1)
-
-          st, assets = api(f"/repos/{REPO}/releases/{rel['id']}/assets?per_page=100")
-          print(f"release {TAG} 现有资产 {len(assets)} 个")
-
-          deleted = 0
-          for a in assets:
-              name = a["name"]
-              if name in KEEP:
-                  print(f"  keep   {name}")
-                  continue
-              # 只删带版本号旧命名的，避免误伤
-              if "1.1.1" not in name:
-                  print(f"  skip   {name} (命名不在白名单模式)")
-                  continue
-              code, _ = api(f"/repos/{REPO}/releases/assets/{a['id']}", method="DELETE")
-              print(f"  delete {name} -> {code}")
-              deleted += code in (204, 200)
-
-          print(f"已删除 {deleted} 个冗余资产")
-
-          st, assets = api(f"/repos/{REPO}/releases/{rel['id']}/assets?per_page=100")
-          names = sorted(a["name"] for a in assets)
-          print(f"\n清理后剩余 {len(names)} 个：")
-          for n in names:
-              print("  -", n)
-          missing = KEEP - set(names)
-          print("缺失（下载页引用但 Release 没有）:", sorted(missing) or "无")
-
-          # ---------- 2. 开启 GitHub Pages ----------
-          st, info = api(f"/repos/{REPO}/pages")
+          log(f"[assets] get release -> {st}")
           if st == 200:
-              print(f"\nPages 已启用: {info.get('html_url')}  状态 {info.get('status')}")
-          else:
+              st, assets = api(f"/repos/{REPO}/releases/{rel['id']}/assets?per_page=100")
+              log(f"[assets] before = {len(assets)}")
+              for a in assets:
+                  name = a["name"]
+                  if name in KEEP:
+                      log(f"  keep   {name}")
+                      continue
+                  if "1.1.1" not in name:
+                      log(f"  skip   {name}")
+                      continue
+                  code, _ = api(f"/repos/{REPO}/releases/assets/{a['id']}", method="DELETE")
+                  log(f"  delete {name} -> {code}")
+              st, assets = api(f"/repos/{REPO}/releases/{rel['id']}/assets?per_page=100")
+              names = sorted(a["name"] for a in assets)
+              log(f"[assets] after = {len(names)}")
+              for n in names:
+                  log(f"  ok {n}")
+              miss = [k for k in KEEP if k not in names]
+              log(f"[assets] missing = {miss if miss else 'none'}")
+
+          # ---------- 2. Pages ----------
+          st, info = api(f"/repos/{REPO}/pages")
+          log(f"\n[pages] GET -> {st}")
+          if st != 200:
               st2, info2 = api(
                   f"/repos/{REPO}/pages",
                   method="POST",
                   payload={"source": {"branch": "main", "path": "/docs"}},
               )
-              if st2 in (201, 200, 204):
-                  print(f"\nPages 已创建（main:/docs）: {info2.get('html_url') if isinstance(info2, dict) else ''}")
-              else:
-                  print(f"\n!! 开启 Pages 失败 {st2}: {info2}")
+              log(f"[pages] POST -> {st2}")
+              log(f"[pages] body -> {json.dumps(info2, ensure_ascii=False)[:600]}")
+              if st2 in (200, 201, 204):
+                  st3, info3 = api(f"/repos/{REPO}/pages")
+                  log(f"[pages] GET after POST -> {st3} {json.dumps(info3, ensure_ascii=False)[:400]}")
+          else:
+              log(f"[pages] already enabled: {json.dumps(info, ensure_ascii=False)[:400]}")
+
+          with open("ops-report.txt", "w", encoding="utf-8") as f:
+              f.write("\n".join(REPORT) + "\n")
           PY
+
+      - name: Commit report
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ops-report.txt
+          git diff --cached --quiet && echo "报告无变化" && exit 0
+          git commit -m "chore: ops-report（release 资产与 Pages 状态）"
+          git push
