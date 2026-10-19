@@ -63,6 +63,44 @@
     font-size:12.5px; padding:5px 11px; border-radius:99px; font-weight:500;
   }
 
+  /* ---------- 下载线路切换 ---------- */
+  .line{
+    margin:22px auto 0; max-width:540px; display:flex; align-items:center;
+    justify-content:center; gap:10px; flex-wrap:wrap;
+  }
+  .line-label{font-size:12.5px; color:var(--sub)}
+  .seg{
+    display:inline-flex; background:var(--bg); border:1px solid var(--border);
+    border-radius:9px; padding:2px; gap:2px;
+  }
+  .seg-btn{
+    border:0; background:transparent; color:var(--sub); font-family:inherit;
+    font-size:12.5px; padding:5px 13px; border-radius:7px; cursor:pointer;
+    transition:.15s; line-height:1.5;
+  }
+  .seg-btn:hover{color:var(--text)}
+  .seg-btn.on{
+    background:var(--card); color:var(--text); font-weight:600;
+    box-shadow:0 1px 3px rgba(0,0,0,.09);
+  }
+  .line-tip{flex-basis:100%; text-align:center; font-size:12px; color:var(--faint)}
+  .line-tip b{color:var(--primary-d); font-weight:600}
+
+  /* ---------- 校验表 ---------- */
+  .sha{width:100%; border-collapse:collapse; margin:4px 0 10px}
+  .sha th,.sha td{
+    border-bottom:1px solid var(--border); padding:7px 8px; text-align:left;
+    vertical-align:top;
+  }
+  .sha th{font-size:11.5px; font-weight:500; color:var(--sub); white-space:nowrap}
+  .sha td{font-size:12px}
+  .sha td.num{font-variant-numeric:tabular-nums; color:var(--sub); white-space:nowrap}
+  .sha td.hash{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:10.5px; color:var(--faint); word-break:break-all; line-height:1.55;
+  }
+  .sha tr:last-child td{border-bottom:0}
+
   /* ---------- 智能推荐按钮 ---------- */
   .rec{margin:26px auto 0; max-width:520px; display:none}
   .rec.on{display:block}
@@ -199,6 +237,15 @@
     <p>先解析、再勾选、最后下载。视频、分P、UP 主投稿、评论、弹幕，一次处理完。</p>
     <span class="pill">Windows · macOS · Linux ｜ 安装包内置 FFmpeg</span>
 
+    <div class="line" id="lineBox">
+      <span class="line-label">下载线路</span>
+      <div class="seg" role="group" aria-label="下载线路">
+        <button class="seg-btn on" type="button" data-line="mirror">加速（推荐）</button>
+        <button class="seg-btn" type="button" data-line="official">官方原始</button>
+      </div>
+      <span class="line-tip" id="lineTip">经 <b>ghfast.top</b> 中转，国内实测约 1 MB/s</span>
+    </div>
+
     <div class="rec" id="rec">
       <button class="rec-btn" id="recBtn" type="button">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -259,7 +306,7 @@
       <a class="dl primary-dl" href="https://github.com/biolmz/bili-crawler/releases/latest/download/BiliCrawler-macos-arm64.dmg">
         <div>
           <div class="name">Apple Silicon</div>
-          <div class="meta">arm64.dmg · 44.2 MB</div>
+          <div class="meta">arm64.dmg · 46.4 MB</div>
         </div>
         <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -269,7 +316,7 @@
       <a class="dl" href="https://github.com/biolmz/bili-crawler/releases/latest/download/BiliCrawler-macos-x86_64.dmg">
         <div>
           <div class="name">Intel 芯片</div>
-          <div class="meta">x86_64.dmg · 52.6 MB</div>
+          <div class="meta">x86_64.dmg · 55.2 MB</div>
         </div>
         <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -291,7 +338,7 @@
       <a class="dl primary-dl" href="https://github.com/biolmz/bili-crawler/releases/latest/download/bilicrawler_amd64.deb">
         <div>
           <div class="name">Debian / Ubuntu（x86_64）</div>
-          <div class="meta">amd64.deb · 16.9 MB</div>
+          <div class="meta">amd64.deb · 17.7 MB</div>
         </div>
         <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -301,7 +348,7 @@
       <a class="dl" href="https://github.com/biolmz/bili-crawler/releases/latest/download/bilicrawler_arm64.deb">
         <div>
           <div class="name">Debian / Ubuntu（ARM64）</div>
-          <div class="meta">arm64.deb · 16.7 MB</div>
+          <div class="meta">arm64.deb · 17.5 MB</div>
         </div>
         <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -311,7 +358,7 @@
       <a class="dl" href="https://github.com/biolmz/bili-crawler/releases/latest/download/BiliCrawler-linux-x86_64.tar.gz">
         <div>
           <div class="name">免安装（x86_64）</div>
-          <div class="meta">x86_64.tar.gz · 19.4 MB</div>
+          <div class="meta">x86_64.tar.gz · 20.4 MB</div>
         </div>
         <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -321,7 +368,7 @@
       <a class="dl" href="https://github.com/biolmz/bili-crawler/releases/latest/download/BiliCrawler-linux-aarch64.tar.gz">
         <div>
           <div class="name">免安装（ARM64）</div>
-          <div class="meta">aarch64.tar.gz · 19.2 MB</div>
+          <div class="meta">aarch64.tar.gz · 20.1 MB</div>
         </div>
         <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -368,6 +415,37 @@
         </div>
         <p>FFmpeg 需自行安装：<code>sudo apt install ffmpeg</code>（也可以打开程序后按提示自动下载）。</p>
         <p class="warn">注意：包基于 Ubuntu 22.04 构建，要求 glibc ≥ 2.35。Ubuntu 20.04、Debian 11 等老系统需自行编译。</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>下载太慢？线路说明与校验</summary>
+      <div class="body">
+        <p>GitHub 原始下载在国内经常连不上，或只有几十 KB/s。页面顶部的<b>下载线路</b>可以一键切换：</p>
+        <ul>
+          <li><b>加速（推荐）</b>：经 <code>ghfast.top</code> 公益中转，国内实测约 1 MB/s，46 MB 的 dmg 约 45 秒</li>
+          <li><b>官方原始</b>：直连 GitHub，海外网络或已挂代理时更快</li>
+        </ul>
+        <p>加速线路是第三方公益代理，<b>不受本项目控制</b>，也不对传输内容负责。文件本身带 SHA-256 校验值，下完核对一次，对不上就切回官方线路重下。</p>
+        <div class="cmd">
+          <code>shasum -a 256 BiliCrawler-macos-arm64.dmg</code>
+          <button type="button" data-copy="shasum -a 256 BiliCrawler-macos-arm64.dmg">复制</button>
+        </div>
+        <p>Windows 用 <code>certutil -hashfile 文件名 SHA256</code>；Linux 用 <code>sha256sum</code>。</p>
+        <table class="sha">
+          <thead><tr><th>文件</th><th>大小</th><th>SHA-256</th></tr></thead>
+          <tbody>
+          <tr><td>BiliCrawler-Setup.exe</td><td class="num">49.5 MB</td><td class="hash">25b6233cfc06b9fa8cbada4da3d7a0bee5605a27b86fe44ead81396eb03421b3</td></tr>
+          <tr><td>BiliCrawler-Windows-portable.zip</td><td class="num">64.4 MB</td><td class="hash">79deee436936c6a216033fd99cafb34e6fe2dac5da84bebc4bb2452e4b6780d2</td></tr>
+          <tr><td>BiliCrawler-macos-arm64.dmg</td><td class="num">46.4 MB</td><td class="hash">003e6639c0279ea52eff37c9bec4737a9426907b32c3243ece3bbbe8ccdcd076</td></tr>
+          <tr><td>BiliCrawler-macos-x86_64.dmg</td><td class="num">55.2 MB</td><td class="hash">9c33d5b3b01d3777865744107e1635e9b7d2719d043eea67a8864aa72b3d71a1</td></tr>
+          <tr><td>bilicrawler_amd64.deb</td><td class="num">17.7 MB</td><td class="hash">3ce731fc4ccd22ce4797c288966f53f623f7116d9d5a369da8dd472008237b4c</td></tr>
+          <tr><td>bilicrawler_arm64.deb</td><td class="num">17.5 MB</td><td class="hash">b9266768c5bad69b78c4e86bd440664d47aa84bc13beec6952195409293317f9</td></tr>
+          <tr><td>BiliCrawler-linux-x86_64.tar.gz</td><td class="num">20.4 MB</td><td class="hash">316af3238f18e08c61c407e886342adabf1e19a4b6c84c1425e3b37339e8c4b2</td></tr>
+          <tr><td>BiliCrawler-linux-aarch64.tar.gz</td><td class="num">20.1 MB</td><td class="hash">4843a5503ea0e130973d82fabe35b8dfc7a10bf67ba78e54b0a1382c5861e227</td></tr>
+          </tbody>
+        </table>
+        <p class="warn">体积主要来自内置的 FFmpeg 二进制（Windows 约 100 MB，macOS 约 43 MB）。FFmpeg 是 B 站 DASH 分离流的硬依赖，没有它连 360P 都合不出来。</p>
       </div>
     </details>
 
@@ -420,6 +498,63 @@
 <script>
 (function () {
   var BASE = "https://github.com/biolmz/bili-crawler/releases/latest/download/";
+  var MIRROR = "https://ghfast.top/";
+  var LINE_KEY = "bc_dl_line";
+  var line = "mirror";
+  try { line = localStorage.getItem(LINE_KEY) || "mirror"; } catch (e) {}
+
+  function urlOf(name) {
+    var off = BASE + name;
+    return line === "mirror" ? MIRROR + off : off;
+  }
+
+  function applyLine() {
+    document.querySelectorAll("a.dl").forEach(function (a) {
+      if (!a.dataset.off) a.dataset.off = a.getAttribute("href");
+      a.href = line === "mirror" ? MIRROR + a.dataset.off : a.dataset.off;
+    });
+    document.querySelectorAll(".seg-btn").forEach(function (b) {
+      b.classList.toggle("on", b.dataset.line === line);
+    });
+    var tip = document.getElementById("lineTip");
+    if (tip) {
+      tip.innerHTML = line === "mirror"
+        ? "经 <b>ghfast.top</b> 中转，国内实测约 1 MB/s"
+        : "直连 GitHub，海外或已挂代理时更快";
+    }
+  }
+
+  document.querySelectorAll(".seg-btn").forEach(function (b) {
+    b.addEventListener("click", function () {
+      line = b.dataset.line;
+      try { localStorage.setItem(LINE_KEY, line); } catch (e) {}
+      applyLine();
+    });
+  });
+  applyLine();
+
+  // 加速线路探活：连不上就自动退回官方
+  function probe(u, ms) {
+    return new Promise(function (res) {
+      if (!window.fetch || !window.AbortController) return res(true);
+      var c = new AbortController();
+      var t = setTimeout(function () { c.abort(); res(false); }, ms);
+      fetch(u, { method: "HEAD", mode: "no-cors", signal: c.signal, cache: "no-store" })
+        .then(function () { clearTimeout(t); res(true); })
+        .catch(function () { clearTimeout(t); res(false); });
+    });
+  }
+
+  if (line === "mirror") {
+    probe(MIRROR + BASE + "BiliCrawler-Setup.exe", 4500).then(function (ok) {
+      if (!ok) {
+        line = "official";
+        applyLine();
+        var tip = document.getElementById("lineTip");
+        if (tip) tip.innerHTML = "加速线路暂时不可用，已自动切回<b>官方</b>";
+      }
+    });
+  }
 
   var files = {
     win:    { name: "BiliCrawler-Setup.exe",               label: "Windows 安装版" },
@@ -484,7 +619,7 @@
     document.getElementById("recNote").textContent = note || "下载后按下方说明安装";
     document.getElementById("rec").classList.add("on");
     btn.addEventListener("click", function () {
-      window.location.href = BASE + file.name;
+      window.location.href = urlOf(file.name);
     });
   }
 

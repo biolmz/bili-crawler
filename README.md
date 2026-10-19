@@ -7,12 +7,29 @@
 [![GUI](https://img.shields.io/badge/GUI-tkinter-ff69b4)](https://docs.python.org/3/library/tkinter.html)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
+## 下载
+
+**下载页：<https://biolmz.github.io/bili-crawler/>** —— 会自动识别你的系统与 CPU 架构，只显示需要的那一个。
+
+GitHub 原始下载在国内经常连不上，或只有几十 KB/s。下载页顶部可切换 **加速线路**（经 `ghfast.top` 公益中转，
+实测约 1 MB/s）；也可以自己把链接前面拼上 `https://ghfast.top/`：
+
+```
+https://ghfast.top/https://github.com/biolmz/bili-crawler/releases/latest/download/BiliCrawler-Setup.exe
+```
+
+各平台安装包的体积与 SHA-256 校验值见下载页「下载太慢？线路说明与校验」。加速线路是第三方代理，
+不受本项目控制——**下完请核对 SHA-256**，对不上就换回官方线路重下。
+
+---
+
 ![界面预览](assets/ui-preview.png)
 
 ---
 
 ## 目录
 
+- [下载](#下载)
 - [它是什么](#它是什么)
 - [功能特性](#功能特性)
 - [合规声明](#合规声明)
