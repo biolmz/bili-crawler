@@ -67,12 +67,31 @@ gh workflow run build-macos
 
 ---
 
-## 三、可选：内置 FFmpeg
+## 三、内置 FFmpeg（默认开启）
 
-默认不内置，首次运行由用户在界面里点「未检测到 FFmpeg」下载，或自行 `brew install ffmpeg`
-（程序会自动找到 `/opt/homebrew/bin/ffmpeg` 与 `/usr/local/bin/ffmpeg`）。
+macOS 上从 Finder 启动的 `.app` **不继承终端 PATH**，`brew install` 的 ffmpeg 经常检测不到；
+内置一份静态 ffmpeg 最省事，装完就能合并高清视频。
 
-想把静态 ffmpeg 打进包：
+构建脚本默认按架构下载 [ffmpeg-static](https://github.com/eugeneware/ffmpeg-static) b6.1.1：
+
+| 架构 | 资源 | 解压后 |
+|---|---|---|
+| arm64 | `ffmpeg-darwin-arm64.gz` | 45.6 MB |
+| x86_64 | `ffmpeg-darwin-x64.gz` | 79.5 MB |
+
+产物落在 `Contents/Frameworks/ffmpeg/bin/ffmpeg`，`Contents/Resources/ffmpeg` 是指向它的符号链接。
+包的体积因此增加约 45~80 MB（dmg 约 46 MB / 55 MB）。
+
+不想内置（想省体积）：
+
+```bash
+NO_BUNDLED_FFMPEG=1 bash packaging/macos/build_macos.sh --dmg
+```
+
+此时程序按「环境变量 `BILICRAWLER_FFMPEG` → 程序目录 → 数据目录 → PATH → Homebrew/MacPorts
+常见路径」的顺序查找，也可以在界面里点「未检测到 FFmpeg」自动下载。
+
+自己塞指定版本：
 
 ```bash
 mkdir -p packaging/macos/vendor
@@ -81,8 +100,8 @@ chmod +x packaging/macos/vendor/ffmpeg
 bash packaging/macos/build_macos.sh --dmg
 ```
 
-spec 会自动把 `vendor/ffmpeg` 收进 `Contents/Frameworks/ffmpeg/bin/`。
-注意 ffmpeg 的架构必须和目标包一致（arm64 包要塞 arm64 版），否则运行即报 `Bad CPU type`。
+架构必须与目标包一致（arm64 包要塞 arm64 版），否则运行即报 `Bad CPU type`。
+ffmpeg-static 的二进制是 **GPL** 许可，分发时请保留 `packaging/macos/vendor/ffmpeg.LICENSE`。
 
 ---
 

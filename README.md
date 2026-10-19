@@ -115,8 +115,8 @@
 xattr -dr com.apple.quarantine /Applications/BiliCrawler.app
 ```
 
-> macOS 上 FFmpeg 推荐 `brew install ffmpeg`，程序会自动识别 `/opt/homebrew/bin/ffmpeg`；
-> 也可以打开程序后点顶部「未检测到 FFmpeg」按提示自动下载。
+> 安装包**已内置静态 FFmpeg**，装完即可合并高清视频，不需要再额外安装。
+> 想改用系统版本：`brew install ffmpeg` 后重启程序（查找顺序：环境变量 → 包内 → PATH → Homebrew 目录）。
 > 配置与 Cookie 存在 `~/Library/Application Support/BiliCrawler`，默认下载到 `~/Downloads/BiliDownloads`。
 
 ### Linux 安装（.deb / tar.gz）
