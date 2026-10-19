@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
-"""生成程序图标 app.ico（粉色圆角方块 + 白色播放三角），纯标准库手写 ICO。"""
+"""生成程序图标：app.ico（Windows）/ app.icns（macOS），纯标准库手写。
+
+图标形象：粉色圆角方块 + 白色播放三角。
+"""
 import os
 import struct
+import zlib
 
 PINK = (0xFB, 0x72, 0x99)   # R,G,B
 WHITE = (0xFF, 0xFF, 0xFF)
@@ -99,8 +103,56 @@ def build(path: str, sizes=(16, 32, 48, 64, 128, 256)):
     print(f"icon written: {os.path.abspath(path)}  ({os.path.getsize(path)} bytes, {n} sizes)")
 
 
+# --------------------------------------------------------------------------
+# macOS .icns（PNG 块，macOS 10.7+ 支持）
+# --------------------------------------------------------------------------
+
+def _png_bytes(size: int) -> bytes:
+    """渲染并编码为 PNG（RGBA，8bit）。"""
+    ss = 4 if size <= 64 else (3 if size <= 256 else 1)
+    rows = render(size, ss=ss)
+    raw = bytearray()
+    for y in range(size):
+        raw.append(0)                       # filter type 0
+        for x in range(size):
+            r, g, b, a = rows[y][x]
+            raw += bytes((r, g, b, a))
+
+    def chunk(tag: bytes, data: bytes) -> bytes:
+        return (struct.pack(">I", len(data)) + tag + data
+                + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF))
+
+    ihdr = struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0)
+    return (b"\x89PNG\r\n\x1a\n"
+            + chunk(b"IHDR", ihdr)
+            + chunk(b"IDAT", zlib.compress(bytes(raw), 9))
+            + chunk(b"IEND", b""))
+
+
+# ICNS 类型 -> 像素尺寸（含 @2x 变体，兼容新旧 macOS）
+ICNS_TYPES = [
+    (b"icp4", 16), (b"icp5", 32), (b"icp6", 64),
+    (b"ic07", 128), (b"ic08", 256), (b"ic09", 512), (b"ic10", 1024),
+    (b"ic11", 32), (b"ic12", 64), (b"ic13", 256), (b"ic14", 512),
+]
+
+
+def build_icns(path: str):
+    cache, blocks = {}, b""
+    for tag, size in ICNS_TYPES:
+        if size not in cache:
+            cache[size] = _png_bytes(size)
+        data = cache[size]
+        blocks += tag + struct.pack(">I", len(data) + 8) + data
+    with open(path, "wb") as f:
+        f.write(b"icns" + struct.pack(">I", len(blocks) + 8) + blocks)
+    print(f"icon written: {os.path.abspath(path)}  ({os.path.getsize(path)} bytes, "
+          f"{len(cache)} png sizes)")
+
+
 if __name__ == "__main__":
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                       "assets", "app.ico")
-    os.makedirs(os.path.dirname(out), exist_ok=True)
-    build(out)
+    root = os.path.dirname(os.path.abspath(__file__))
+    out_dir = os.path.join(root, "assets")
+    os.makedirs(out_dir, exist_ok=True)
+    build(os.path.join(out_dir, "app.ico"))
+    build_icns(os.path.join(out_dir, "app.icns"))

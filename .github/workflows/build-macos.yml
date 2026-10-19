@@ -1,0 +1,71 @@
+name: build-macos
+
+# 在 GitHub 的 macOS 机器上打 .app / .dmg（Windows 无法交叉编译）
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "assets/app.icns"
+      - "gen_icon.py"
+      - "packaging/macos/**"
+      - ".github/workflows/build-macos.yml"
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: macOS ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14         # Apple Silicon
+            arch: arm64
+          - os: macos-15-intel   # Intel
+            arch: x86_64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Python 与 Tk
+        run: |
+          brew install python@3.12 python-tk@3.12
+          PY="$(brew --prefix python@3.12)/bin/python3.12"
+          echo "PYTHON=$PY" >> "$GITHUB_ENV"
+          "$PY" -c "import tkinter, sys; print(sys.version); print('Tk', tkinter.TkVersion)"
+
+      - name: 构建 .app 与 .dmg
+        run: bash packaging/macos/build_macos.sh --dmg
+
+      - name: 校验产物架构
+        run: |
+          APP=dist/BiliCrawler.app
+          file "$APP/Contents/MacOS/BiliCrawler"
+          echo "--- 链接的 Tk ---"
+          otool -L "$APP/Contents/MacOS/BiliCrawler" | grep -iE "tk|tcl" || true
+          echo "--- Frameworks ---"
+          ls "$APP/Contents/Frameworks" | head -20
+          codesign --verify --deep --strict "$APP" && echo "codesign ok"
+
+      - name: 上传 dmg
+        uses: actions/upload-artifact@v4
+        with:
+          name: BiliCrawler-macos-${{ matrix.arch }}
+          path: |
+            dist/*.dmg
+            dist/*.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: 附加到 Release
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.dmg
+          fail_on_unmatched_files: false

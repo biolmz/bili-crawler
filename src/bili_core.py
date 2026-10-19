@@ -40,6 +40,10 @@ import requests
 APP_NAME = "BiliCrawler"
 APP_VERSION = "1.1.0"
 
+# 平台判定：Windows / macOS / 其它（Linux）共用同一套代码，差异集中在路径与外部程序名
+IS_WIN = sys.platform.startswith("win")
+IS_MAC = sys.platform == "darwin"
+
 UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -103,31 +107,56 @@ def sanitize(name: str, maxlen: int = 90) -> str:
     return name[:maxlen] or "untitled"
 
 
+# 外部程序名：Windows 带 .exe 后缀
+FFMPEG_BIN = "ffmpeg.exe" if IS_WIN else "ffmpeg"
+
+
 def app_dir() -> str:
-    """程序所在目录（打包后为 exe 所在目录）。"""
+    """程序所在目录（Windows 为 exe 目录；macOS 为 .app/Contents/Resources）。"""
     if getattr(sys, "frozen", False):
-        return os.path.dirname(sys.executable)
+        here = os.path.dirname(sys.executable)
+        if IS_MAC:
+            res = os.path.normpath(os.path.join(here, "..", "Resources"))
+            if os.path.isdir(res):
+                return res
+        return here
     return os.path.dirname(os.path.abspath(__file__))
 
 
 def data_dir() -> str:
-    """程序数据目录（cookie、ffmpeg 等）。优先 D 盘。"""
-    base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    """程序数据目录（cookie、ffmpeg 等）。"""
+    if IS_MAC:
+        base = os.path.expanduser("~/Library/Application Support")
+    elif IS_WIN:
+        base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    else:
+        base = os.environ.get("XDG_DATA_HOME") or os.path.join(
+            os.path.expanduser("~"), ".local", "share")
     d = os.path.join(base, APP_NAME)
     os.makedirs(d, exist_ok=True)
     return d
 
 
 def default_download_dir() -> str:
-    """默认下载目录：D 盘优先。"""
-    for drive in ("D:\\", "E:\\"):
-        if os.path.isdir(drive):
-            p = os.path.join(drive, "BiliDownloads")
+    """默认下载目录。"""
+    if IS_MAC:
+        for p in (os.path.join(os.path.expanduser("~"), "Downloads"),
+                  os.path.expanduser("~")):
+            p = os.path.join(p, "BiliDownloads")
             try:
                 os.makedirs(p, exist_ok=True)
                 return p
             except OSError:
                 pass
+    else:
+        for drive in ("D:\\", "E:\\"):
+            if os.path.isdir(drive):
+                p = os.path.join(drive, "BiliDownloads")
+                try:
+                    os.makedirs(p, exist_ok=True)
+                    return p
+                except OSError:
+                    pass
     p = os.path.join(os.path.expanduser("~"), "BiliDownloads")
     os.makedirs(p, exist_ok=True)
     return p
@@ -140,20 +169,21 @@ def default_download_dir() -> str:
 def is_ffmpeg(path: str) -> bool:
     if not path:
         return False
-    exe = path if path.lower().endswith(".exe") else os.path.join(path, "ffmpeg.exe")
-    return os.path.isfile(exe)
+    if os.path.isfile(path):
+        return True
+    return os.path.isfile(os.path.join(path, FFMPEG_BIN))
 
 
 def find_ffmpeg() -> str:
     """
     依次查找 ffmpeg：
       0. 环境变量 BILICRAWLER_FFMPEG 指定的路径
-      1. 程序目录 / 程序目录\\ffmpeg\\bin（安装后的位置）
+      1. 程序目录 / 程序目录/ffmpeg/bin（安装后的位置）
       2. 项目 assets 目录（源码运行）
       3. 数据目录
-      4. 系统 PATH
+      4. 系统 PATH（含 Homebrew 的 /opt/homebrew/bin、/usr/local/bin）
       5. 常见安装位置
-    返回 ffmpeg.exe 的完整路径，找不到返回 ""。
+    返回 ffmpeg 可执行文件的完整路径，找不到返回 ""。
     """
     env_ff = os.environ.get("BILICRAWLER_FFMPEG", "").strip()
     if env_ff and os.path.isfile(env_ff):
@@ -161,18 +191,18 @@ def find_ffmpeg() -> str:
 
     meipass = getattr(sys, "_MEIPASS", "")
     candidates = [
-        os.path.join(app_dir(), "ffmpeg.exe"),
-        os.path.join(app_dir(), "ffmpeg", "bin", "ffmpeg.exe"),
-        os.path.join(app_dir(), "bin", "ffmpeg.exe"),
-        # 源码运行时：<项目根>/assets/ffmpeg/bin/ffmpeg.exe
-        os.path.join(os.path.dirname(app_dir()), "assets", "ffmpeg", "bin", "ffmpeg.exe"),
-        os.path.join(data_dir(), "ffmpeg", "bin", "ffmpeg.exe"),
-        os.path.join(data_dir(), "ffmpeg.exe"),
+        os.path.join(app_dir(), FFMPEG_BIN),
+        os.path.join(app_dir(), "ffmpeg", "bin", FFMPEG_BIN),
+        os.path.join(app_dir(), "bin", FFMPEG_BIN),
+        # 源码运行时：<项目根>/assets/ffmpeg/bin/ffmpeg(.exe)
+        os.path.join(os.path.dirname(app_dir()), "assets", "ffmpeg", "bin", FFMPEG_BIN),
+        os.path.join(data_dir(), "ffmpeg", "bin", FFMPEG_BIN),
+        os.path.join(data_dir(), FFMPEG_BIN),
     ]
     if meipass:
         candidates += [
-            os.path.join(meipass, "ffmpeg.exe"),
-            os.path.join(meipass, "ffmpeg", "bin", "ffmpeg.exe"),
+            os.path.join(meipass, FFMPEG_BIN),
+            os.path.join(meipass, "ffmpeg", "bin", FFMPEG_BIN),
         ]
     for c in candidates:
         if os.path.isfile(c):
@@ -182,12 +212,22 @@ def find_ffmpeg() -> str:
     if which:
         return which
 
-    for p in (
-        r"C:\ffmpeg\bin\ffmpeg.exe",
-        r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
-        r"D:\ffmpeg\bin\ffmpeg.exe",
-        os.path.expanduser(r"~\scoop\shims\ffmpeg.exe"),
-    ):
+    if IS_WIN:
+        common = (
+            r"C:\ffmpeg\bin\ffmpeg.exe",
+            r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
+            r"D:\ffmpeg\bin\ffmpeg.exe",
+            os.path.expanduser(r"~\scoop\shims\ffmpeg.exe"),
+        )
+    elif IS_MAC:
+        common = (
+            "/opt/homebrew/bin/ffmpeg",
+            "/usr/local/bin/ffmpeg",
+            "/Applications/ffmpeg",
+        )
+    else:
+        common = ("/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg")
+    for p in common:
         if os.path.isfile(p):
             return p
     return ""

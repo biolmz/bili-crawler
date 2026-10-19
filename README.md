@@ -1,8 +1,8 @@
 # BiliCrawler · B站视频采集下载器
 
-> Windows 桌面工具。**先解析、再勾选、最后下载**——粘贴链接后先看到完整清单，确认无误才动手。
+> Windows / macOS 桌面工具。**先解析、再勾选、最后下载**——粘贴链接后先看到完整清单，确认无误才动手。
 
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4?logo=windows)](https://github.com/biolmz/bili-crawler/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20·%20macOS%2011%2B-0078D4?logo=apple)](https://github.com/biolmz/bili-crawler/releases)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![GUI](https://img.shields.io/badge/GUI-tkinter-ff69b4)](https://docs.python.org/3/library/tkinter.html)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -29,7 +29,7 @@
 
 ## 它是什么
 
-一个 tkinter 写的 Windows 桌面小工具，做两件事：
+一个 tkinter 写的跨平台桌面小工具（Windows / macOS），做两件事：
 
 1. **下载** B 站公开投稿视频（含分P、UP 主投稿批量）
 2. **采集** 公开数据：视频信息 / 评论 / 弹幕，输出 JSON
@@ -100,6 +100,24 @@
 2. 双击运行，向导里**保持 FFmpeg 组件勾选**（高清晰度必须靠它合并音视频）
 3. 默认装到 `D:\Program Files\BiliCrawler`（无 D 盘则退回 `Program Files`）
 4. 装完自动生成桌面 / 开始菜单快捷方式
+
+### macOS 安装（.dmg）
+
+1. 到 [Releases](https://github.com/biolmz/bili-crawler/releases) 下载对应架构的镜像：
+   - Apple Silicon（M1/M2/M3/M4）→ `BiliCrawler-x.x.x-macos-arm64.dmg`
+   - Intel 芯片 → `BiliCrawler-x.x.x-macos-x86_64.dmg`
+2. 双击 dmg，把 **BiliCrawler** 拖到旁边的 **Applications** 文件夹
+3. 首次打开：在「应用程序」里**右键 → 打开 → 再点打开**
+   （构建包没有做 Apple 公证，直接双击会被 Gatekeeper 拦下，属正常现象）
+4. 若提示「已损坏，无法打开」，终端执行一次即可：
+
+```bash
+xattr -dr com.apple.quarantine /Applications/BiliCrawler.app
+```
+
+> macOS 上 FFmpeg 推荐 `brew install ffmpeg`，程序会自动识别 `/opt/homebrew/bin/ffmpeg`；
+> 也可以打开程序后点顶部「未检测到 FFmpeg」按提示自动下载。
+> 配置与 Cookie 存在 `~/Library/Application Support/BiliCrawler`，默认下载到 `~/Downloads/BiliDownloads`。
 
 ### 方式二：免安装绿色版
 
@@ -188,7 +206,7 @@ python -m venv .venv
 .venv/Scripts/python gen_icon.py
 ```
 
-纯标准库手写的 ICO 生成脚本，输出 `assets/app.ico`。
+纯标准库手写的图标生成脚本，同时输出 `assets/app.ico`（Windows）与 `assets/app.icns`（macOS）。
 
 ### 2. 下载 FFmpeg
 
@@ -216,6 +234,29 @@ tools/nsis-3.10/Bin/makensis.exe installer/setup.nsi
 
 - `installer/setup.nsi` 含中文，**必须存为 UTF-8 with BOM**，否则编译出来乱码
 - 不要用 `InstallDirRegKey`，它会覆盖命令行传入的 `/D=`；默认目录在 `.onInit` 里手动判断
+
+### macOS 打包（.app / .dmg）
+
+PyInstaller **不能交叉编译**——macOS 包只能在 macOS 上产出。仓库已带好整套脚本，在 Mac 上两行搞定：
+
+```bash
+brew install python@3.12 python-tk@3.12
+bash packaging/macos/build_macos.sh --dmg
+```
+
+产物：
+
+- `dist/BiliCrawler.app`
+- `dist/BiliCrawler-<版本>-macos-<arm64|x86_64>.dmg`（内含 Applications 快捷方式与安装说明）
+
+没有 Mac 也能出包：推代码后 GitHub Actions 自动在 macOS 机器上构建（arm64 + Intel 双架构），
+见 `.github/workflows/build-macos.yml`；产物在 Actions 的 Artifacts 里，打 tag 时自动附加到 Release。
+
+脚本按顺序做这些事：校验 tkinter → 生成 `assets/app.icns` → PyInstaller 打 `.app`
+→ 校验 Tcl/Tk 与 yt-dlp 是否齐全 → ad-hoc 签名 → `ditto` 打 zip → `hdiutil` 打 dmg。
+
+> 构建包只做 ad-hoc 签名、未做 Apple 公证，用户首次打开需右键 → 打开。
+> 想彻底免提示，需要在 CI 里注入 Apple Developer 证书做 `codesign` + `notarytool` 公证。
 
 ### 自测
 
@@ -297,8 +338,16 @@ bili-crawler/
 │  └─ app.py              tkinter 图形界面
 ├─ installer/
 │  └─ setup.nsi           NSIS 安装包脚本（UTF-8 with BOM）
+├─ packaging/macos/
+│  ├─ BiliCrawler-macos.spec  PyInstaller 的 .app 打包配置
+│  ├─ build_macos.sh      一键构建 .app（可选 --dmg）
+│  ├─ make_dmg.sh         hdiutil 生成拖拽式安装镜像
+│  └─ vendor/             可选：放静态 ffmpeg，会一起打进 .app
+├─ .github/workflows/
+│  └─ build-macos.yml     macOS 双架构自动构建（arm64 / Intel）
 ├─ assets/
 │  ├─ app.ico             程序图标（gen_icon.py 生成）
+│  ├─ app.icns            macOS 图标（gen_icon.py 生成）
 │  ├─ ui-preview.png      界面截图（README 用）
 │  └─ ffmpeg/bin/         FFmpeg（构建时一并部署，非 PyInstaller 内嵌）
 ├─ tools/nsis-3.10/       NSIS 编译器（便携版）

@@ -39,11 +39,15 @@ from dataclasses import dataclass
 from tkinter import ttk, filedialog, messagebox
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import bili_core
 from bili_core import (  # noqa: E402
     APP_NAME, APP_VERSION, BiliClient, BiliError, VideoInfo, VideoRef,
     data_dir, default_download_dir, find_ffmpeg, human_size, human_time,
     parse_input, sanitize,
 )
+
+IS_WIN = sys.platform.startswith("win")
+IS_MAC = sys.platform == "darwin"
 
 # ======================================================================
 # 主题
@@ -62,13 +66,23 @@ WARN = "#ff7d00"
 ERR = "#d54941"
 HOVER = "#f4f5f7"
 
-FONT = "Microsoft YaHei UI"
-MONO = "Consolas"
-FFMPEG_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+if IS_MAC:
+    FONT = "PingFang SC"
+    MONO = "Menlo"
+    FFMPEG_URL = "https://evermeet.cx/ffmpeg/getrelease/zip"
+    FFMPEG_PKG_HINT = "macOS（解压后得到单文件 ffmpeg）"
+else:
+    FONT = "Microsoft YaHei UI"
+    MONO = "Consolas"
+    FFMPEG_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+    FFMPEG_PKG_HINT = "Windows"
 
 
 def _detect_scale() -> float:
     """检测系统 DPI 缩放倍率（96 DPI = 1.0）。高分屏上所有像素尺寸都要跟着放大。"""
+    if IS_MAC:
+        # macOS 的 Tk 已按 Retina 逻辑像素渲染，再乘倍率会整体过大
+        return 1.0
     try:
         from ctypes import windll
         windll.shcore.SetProcessDpiAwareness(1)
@@ -399,17 +413,25 @@ class App(tk.Tk):
         self.txt_input.delete("1.0", "end")
 
     def _pick_dir(self):
-        d = filedialog.askdirectory(initialdir=self.var_outdir.get() or "D:\\")
+        d = filedialog.askdirectory(initialdir=self.var_outdir.get()
+                                    or default_download_dir())
         if d:
             self.var_outdir.set(os.path.normpath(d))
 
     def _open_dir(self):
         d = self.var_outdir.get()
         os.makedirs(d, exist_ok=True)
-        try:
-            os.startfile(d)
-        except Exception:
-            subprocess.Popen(["explorer", d])
+        if IS_MAC:
+            subprocess.Popen(["open", d])
+            return
+        if IS_WIN:
+            try:
+                os.startfile(d)
+                return
+            except Exception:
+                subprocess.Popen(["explorer", d])
+                return
+        subprocess.Popen(["xdg-open", d])
 
     def _toggle_log(self):
         """打开（或唤到前台）独立的日志窗口。"""
@@ -516,7 +538,8 @@ class App(tk.Tk):
         if not messagebox.askyesno(
                 "获取 FFmpeg",
                 "高清晰度视频的画面与音轨是分开的，需要 FFmpeg 合并。\n\n"
-                f"将从公开源下载 FFmpeg（约 30MB）到：\n{data_dir()}\\ffmpeg\n\n是否继续？"):
+                f"将从公开源下载 FFmpeg（{FFMPEG_PKG_HINT}）到：\n"
+                f"{os.path.join(data_dir(), 'ffmpeg')}\n\n是否继续？"):
             return
 
         def job():
@@ -541,16 +564,20 @@ class App(tk.Tk):
                                     f"下载 FFmpeg {human_size(got)} / {human_size(total)}")))
                 self._log("解压中…")
                 with zipfile.ZipFile(tmp) as z:
-                    hit = [n for n in z.namelist() if n.endswith("bin/ffmpeg.exe")]
+                    want = bili_core.FFMPEG_BIN
+                    hit = [n for n in z.namelist()
+                           if not n.endswith("/") and os.path.basename(n) == want]
                     if not hit:
-                        raise RuntimeError("压缩包内未找到 ffmpeg.exe")
-                    with z.open(hit[0]) as src, \
-                            open(os.path.join(dst, "ffmpeg.exe"), "wb") as out:
+                        raise RuntimeError(f"压缩包内未找到 {want}")
+                    target = os.path.join(dst, want)
+                    with z.open(hit[0]) as src, open(target, "wb") as out:
                         while True:
                             b = src.read(1048576)
                             if not b:
                                 break
                             out.write(b)
+                    if not IS_WIN:
+                        os.chmod(target, 0o755)
                 try:
                     os.remove(tmp)
                 except OSError:
@@ -932,15 +959,17 @@ class App(tk.Tk):
 def run_cli(argv) -> int:
     """
         BiliCrawler.exe --cli -o D:\\out -q 1080p -m both BV1xx411c7mD
+        BiliCrawler.app/Contents/MacOS/BiliCrawler --cli -o ~/out -q 1080p BV1xx411c7mD
     退出码：0 全部成功 / 1 有失败 / 2 地址无效
     """
-    try:
-        import ctypes
-        if ctypes.windll.kernel32.AttachConsole(-1):
-            sys.stdout = open("CONOUT$", "w", encoding="utf-8", errors="replace")
-            sys.stderr = sys.stdout
-    except Exception:
-        pass
+    if IS_WIN:
+        try:
+            import ctypes
+            if ctypes.windll.kernel32.AttachConsole(-1):
+                sys.stdout = open("CONOUT$", "w", encoding="utf-8", errors="replace")
+                sys.stderr = sys.stdout
+        except Exception:
+            pass
 
     import argparse
     ap = argparse.ArgumentParser(prog="BiliCrawler",
