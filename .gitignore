@@ -12,7 +12,7 @@ build/
 dist/
 release/
 *.spec
-!packaging/macos/BiliCrawler-macos.spec
+!packaging/**/*.spec
 
 # ---------- 第三方二进制（体积大，构建时自行下载，见 README） ----------
 assets/ffmpeg/
