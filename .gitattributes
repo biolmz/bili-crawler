@@ -1,0 +1,6 @@
+# shell 脚本与 CI 配置必须保持 LF，否则 macOS / Linux 上会报 bad interpreter: ^M
+*.sh   text eol=lf
+*.spec text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.py   text eol=lf
