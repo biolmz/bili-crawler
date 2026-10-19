@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BiliCrawler · B站视频采集下载器 — 下载</title>
+<meta name="description" content="B站视频采集下载器：先解析、再勾选、最后下载。支持 Windows、macOS（Apple Silicon / Intel）、Linux，安装包内置 FFmpeg。">
+<meta property="og:title" content="BiliCrawler · B站视频采集下载器">
+<meta property="og:description" content="先解析、再勾选、最后下载。Windows / macOS / Linux 全平台。">
+<meta property="og:type" content="website">
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --border:#e8eaed; --border-s:#dfe2e6;
+    --text:#1f2329; --sub:#8a9099; --faint:#b3b9c2;
+    --primary:#fb7299; --primary-d:#ef5b86; --primary-l:#ffe9f0;
+    --ok:#00b42a; --warn:#ff7d00; --shadow:0 1px 2px rgba(16,24,40,.04);
+    --radius:14px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0f1115; --card:#171a21; --border:#282d38; --border-s:#333947;
+      --text:#e9ecf1; --sub:#9aa2b1; --faint:#6b7383;
+      --primary:#fb7299; --primary-d:#ff85a8; --primary-l:#3a1f2a;
+      --shadow:0 1px 3px rgba(0,0,0,.35);
+    }
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",
+                "Microsoft YaHei UI","Microsoft YaHei","Noto Sans CJK SC","Source Han Sans SC",
+                "Segoe UI",sans-serif;
+    font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--primary); text-decoration:none}
+  a:hover{color:var(--primary-d)}
+  .wrap{max-width:1040px; margin:0 auto; padding:0 20px}
+
+  /* ---------- 顶栏 ---------- */
+  header{border-bottom:1px solid var(--border); background:var(--card)}
+  .nav{display:flex; align-items:center; gap:12px; height:62px}
+  .brand{display:flex; align-items:center; gap:10px; font-weight:600; font-size:15px; color:var(--text)}
+  .brand svg{display:block; border-radius:7px}
+  .ver{
+    font-size:12px; color:var(--sub); border:1px solid var(--border-s);
+    padding:1px 8px; border-radius:99px; font-variant-numeric:tabular-nums;
+  }
+  .nav .spacer{flex:1}
+  .nav .ghost{
+    font-size:13.5px; color:var(--sub); padding:6px 12px; border-radius:8px;
+    border:1px solid transparent; transition:.16s;
+  }
+  .nav .ghost:hover{background:var(--bg); color:var(--text); border-color:var(--border)}
+
+  /* ---------- Hero ---------- */
+  .hero{padding:52px 0 34px; text-align:center}
+  .hero h1{margin:0 0 10px; font-size:31px; line-height:1.3; letter-spacing:-.4px; font-weight:650}
+  .hero p{margin:0 auto; max-width:640px; color:var(--sub); font-size:15px}
+  .pill{
+    display:inline-flex; align-items:center; gap:6px; margin-top:16px;
+    background:var(--primary-l); color:var(--primary-d);
+    font-size:12.5px; padding:5px 11px; border-radius:99px; font-weight:500;
+  }
+
+  /* ---------- 智能推荐按钮 ---------- */
+  .rec{margin:26px auto 0; max-width:520px; display:none}
+  .rec.on{display:block}
+  .rec-btn{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    width:100%; padding:15px 20px; border:0; border-radius:12px; cursor:pointer;
+    background:var(--primary); color:#fff; font-size:15.5px; font-weight:600;
+    font-family:inherit; box-shadow:0 6px 18px rgba(251,114,153,.28);
+    transition:.18s;
+  }
+  .rec-btn:hover{background:var(--primary-d); transform:translateY(-1px);
+    box-shadow:0 8px 22px rgba(251,114,153,.34)}
+  .rec-btn:active{transform:translateY(0)}
+  .rec-btn svg{flex:none}
+  .rec-note{margin:9px 0 0; font-size:12.5px; color:var(--faint); text-align:center}
+
+  /* ---------- 平台卡片 ---------- */
+  .grid{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(272px,1fr));
+    gap:16px; margin:34px 0 0; align-items:start;
+  }
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    padding:18px 18px 8px; box-shadow:var(--shadow); transition:.18s;
+  }
+  .card.hl{border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-l), var(--shadow)}
+  .card-head{display:flex; align-items:center; gap:9px; margin-bottom:2px}
+  .card-head .ico{width:22px; height:22px; color:var(--text); opacity:.85; flex:none}
+  .card-head h2{margin:0; font-size:15.5px; font-weight:600}
+  .tag{
+    margin-left:auto; font-size:11px; padding:2px 7px; border-radius:99px;
+    background:var(--primary-l); color:var(--primary-d); font-weight:600;
+    letter-spacing:.2px; white-space:nowrap;
+  }
+  .card-sub{margin:2px 0 12px; font-size:12.5px; color:var(--sub)}
+
+  .dl{
+    display:flex; align-items:center; gap:10px; padding:10px 11px; margin-bottom:8px;
+    border:1px solid var(--border); border-radius:10px; color:var(--text);
+    transition:.15s;
+  }
+  .dl:hover{border-color:var(--primary); background:var(--primary-l); color:var(--text)}
+  .dl .name{font-size:13.5px; font-weight:500}
+  .dl .meta{font-size:11.5px; color:var(--sub); font-variant-numeric:tabular-nums}
+  .dl .arrow{margin-left:auto; color:var(--faint); transition:.15s}
+  .dl:hover .arrow{color:var(--primary); transform:translateY(1px)}
+  .dl.primary-dl{border-color:var(--primary); background:var(--primary-l)}
+  .dl.primary-dl .meta{color:var(--primary-d)}
+  .dl.primary-dl:hover{background:var(--primary-l); border-color:var(--primary-d)}
+
+  .cmd{
+    display:flex; align-items:center; gap:8px; margin:2px 0 10px;
+    background:var(--bg); border:1px solid var(--border); border-radius:9px;
+    padding:8px 10px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:11.5px; color:var(--sub); overflow:hidden;
+  }
+  .cmd code{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1}
+  .cmd button{
+    flex:none; border:1px solid var(--border-s); background:var(--card); color:var(--sub);
+    font-size:11px; padding:2px 8px; border-radius:6px; cursor:pointer; font-family:inherit;
+  }
+  .cmd button:hover{color:var(--text); border-color:var(--primary); color:var(--primary-d)}
+
+  /* ---------- 通用信息 ---------- */
+  .info{
+    margin:30px 0 0; background:var(--card); border:1px solid var(--border);
+    border-radius:var(--radius); padding:6px 20px; box-shadow:var(--shadow);
+  }
+  .info details{border-bottom:1px solid var(--border); padding:14px 0}
+  .info details:last-child{border-bottom:0}
+  .info summary{
+    cursor:pointer; font-weight:600; font-size:14px; list-style:none;
+    display:flex; align-items:center; gap:8px;
+  }
+  .info summary::-webkit-details-marker{display:none}
+  .info summary::before{
+    content:""; width:0; height:0; border-left:5px solid var(--faint);
+    border-top:4px solid transparent; border-bottom:4px solid transparent;
+    transition:.15s; flex:none;
+  }
+  .info details[open] summary::before{transform:rotate(90deg)}
+  .info .body{padding:9px 0 0 13px; color:var(--sub); font-size:13.5px}
+  .info .body p{margin:0 0 8px}
+  .info .body p:last-child{margin-bottom:0}
+  .info .body ul{margin:6px 0 8px; padding-left:18px}
+  .info .body li{margin:3px 0}
+  kbd{
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px;
+    background:var(--bg); border:1px solid var(--border-s); border-bottom-width:2px;
+    border-radius:5px; padding:1px 5px; color:var(--text);
+  }
+  .ok{color:var(--ok); font-weight:600}
+  .warn{color:var(--warn); font-weight:600}
+
+  /* ---------- 页脚 ---------- */
+  footer{
+    margin:38px 0 0; padding:22px 0 40px; border-top:1px solid var(--border);
+    color:var(--faint); font-size:12.5px; display:flex; flex-wrap:wrap; gap:10px;
+    align-items:center;
+  }
+  footer .spacer{flex:1}
+  footer a{color:var(--sub)}
+
+  @media (max-width:600px){
+    .hero{padding:36px 0 26px}
+    .hero h1{font-size:25px}
+    .nav .ghost.hide-sm{display:none}
+    .info{padding:4px 15px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="https://github.com/biolmz/bili-crawler">
+      <svg width="26" height="26" viewBox="0 0 256 256" aria-hidden="true">
+        <rect x="11" y="11" width="234" height="234" rx="72" fill="#FB7299"/>
+        <path d="M92 78 L92 178 L184 128 Z" fill="#fff"/>
+      </svg>
+      BiliCrawler
+    </a>
+    <span class="ver">v1.1.1</span>
+    <span class="spacer"></span>
+    <a class="ghost hide-sm" href="#install">安装说明</a>
+    <a class="ghost" href="https://github.com/biolmz/bili-crawler">GitHub</a>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <h1>B站视频采集下载器</h1>
+    <p>先解析、再勾选、最后下载。视频、分P、UP 主投稿、评论、弹幕，一次处理完。</p>
+    <span class="pill">Windows · macOS · Linux ｜ 安装包内置 FFmpeg</span>
+
+    <div class="rec" id="rec">
+      <button class="rec-btn" id="recBtn" type="button">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 19h16"/>
+        </svg>
+        <span id="recText">下载</span>
+      </button>
+      <p class="rec-note" id="recNote"></p>
+    </div>
+  </section>
+
+  <section class="grid" id="platforms">
+
+    <!-- Windows -->
+    <article class="card" id="card-win">
+      <div class="card-head">
+        <svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M3 5.6 10.2 4.6v7.1H3V5.6Zm0 12.8 7.2 1V12.3H3v6.1Zm8.4 1.2L21 21V12.3h-9.6v7.3ZM11.4 4.3 21 3v8.4h-9.6V4.3Z"/>
+        </svg>
+        <h2>Windows</h2>
+        <span class="tag" id="winTag" hidden>你的系统</span>
+      </div>
+      <p class="card-sub">Windows 10 / 11 · 64 位</p>
+
+      <a class="dl primary-dl" href="https://github.com/biolmz/bili-crawler/releases/latest/download/BiliCrawler-Setup.exe">
+        <div>
+          <div class="name">安装版（推荐）</div>
+          <div class="meta">Setup.exe · 含 FFmpeg</div>
+        </div>
+        <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 19h16"/></svg>
+      </a>
+
+      <a class="dl" href="https://github.com/biolmz/bili-crawler/releases/latest/download/BiliCrawler-Windows-portable.zip">
+        <div>
+          <div class="name">免安装版</div>
+          <div class="meta">Portable.zip · 解压即用</div>
+        </div>
+        <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 19h16"/></svg>
+      </a>
+    </article>
+
+    <!-- macOS -->
+    <article class="card" id="card-mac">
+      <div class="card-head">
+        <svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M16.4 12.7c0-2.4 2-3.6 2.1-3.6-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.6.9-.8 0-1.9-.9-3.1-.9-1.6 0-3.1.9-3.9 2.4-1.7 2.9-.4 7.1 1.2 9.5.8 1.1 1.7 2.4 3 2.3 1.2 0 1.6-.8 3.1-.8s1.9.8 3.1.8c1.3 0 2.1-1.2 2.9-2.3.9-1.3 1.3-2.6 1.3-2.7-.1 0-2.6-1-2.6-3.7ZM14 5.4c.7-.8 1.1-1.9 1-3-1 .1-2.1.6-2.8 1.4-.6.7-1.1 1.8-1 2.9 1.1.1 2.2-.5 2.8-1.3Z"/>
+        </svg>
+        <h2>macOS</h2>
+        <span class="tag" id="macTag" hidden>你的系统</span>
+      </div>
+      <p class="card-sub">macOS 11+ · 安装包内置 FFmpeg</p>
+
+      <a class="dl primary-dl" href="https://github.com/biolmz/bili-crawler/releases/latest/download/BiliCrawler-macos-arm64.dmg">
+        <div>
+          <div class="name">Apple Silicon</div>
+          <div class="meta">arm64.dmg · 46.4 MB</div>
+        </div>
+        <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 19h16"/></svg>
+      </a>
+
+      <a class="dl" href="https://github.com/biolmz/bili-crawler/releases/latest/download/BiliCrawler-macos-x86_64.dmg">
+        <div>
+          <div class="name">Intel 芯片</div>
+          <div class="meta">x86_64.dmg · 55.2 MB</div>
+        </div>
+        <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 19h16"/></svg>
+      </a>
+    </article>
+
+    <!-- Linux -->
+    <article class="card" id="card-linux">
+      <div class="card-head">
+        <svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 2c-1.9 0-3.4 1.6-3.4 3.6 0 1.4.3 2.4-.5 3.7-.9 1.4-1.9 2.4-2.5 3.9-.7 1.8-.4 3.3.5 3.9.3.2.4.6.3 1-.2.8-.6 1.4-1 1.9-.5.7-.2 1.6.7 1.9 1 .3 2.4.2 3.3-.3.6-.3 1.2-.3 1.8 0 .9.5 2.3.6 3.3.3.9-.3 1.2-1.2.7-1.9-.4-.5-.8-1.1-1-1.9-.1-.4 0-.8.3-1 .9-.6 1.2-2.1.5-3.9-.6-1.5-1.6-2.5-2.5-3.9-.8-1.3-.5-2.3-.5-3.7C15.4 3.6 13.9 2 12 2Zm-1.4 3.1a.7.7 0 1 1 0 1.4.7.7 0 0 1 0-1.4Zm2.8 0a.7.7 0 1 1 0 1.4.7.7 0 0 1 0-1.4ZM12 7.4c.8 0 1.5.7 1.5 1.3 0 .6-1 1.4-1.5 1.4s-1.5-.8-1.5-1.4c0-.6.7-1.3 1.5-1.3Z"/>
+        </svg>
+        <h2>Linux</h2>
+        <span class="tag" id="linuxTag" hidden>你的系统</span>
+      </div>
+      <p class="card-sub">glibc ≥ 2.35 · Ubuntu 22.04+ / Debian 12+</p>
+
+      <a class="dl primary-dl" href="https://github.com/biolmz/bili-crawler/releases/latest/download/bilicrawler_amd64.deb">
+        <div>
+          <div class="name">Debian / Ubuntu（x86_64）</div>
+          <div class="meta">amd64.deb · 17.7 MB</div>
+        </div>
+        <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 19h16"/></svg>
+      </a>
+
+      <a class="dl" href="https://github.com/biolmz/bili-crawler/releases/latest/download/bilicrawler_arm64.deb">
+        <div>
+          <div class="name">Debian / Ubuntu（ARM64）</div>
+          <div class="meta">arm64.deb · 17.5 MB</div>
+        </div>
+        <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 19h16"/></svg>
+      </a>
+
+      <a class="dl" href="https://github.com/biolmz/bili-crawler/releases/latest/download/BiliCrawler-linux-x86_64.tar.gz">
+        <div>
+          <div class="name">免安装（x86_64）</div>
+          <div class="meta">x86_64.tar.gz · 20.4 MB</div>
+        </div>
+        <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 19h16"/></svg>
+      </a>
+
+      <a class="dl" href="https://github.com/biolmz/bili-crawler/releases/latest/download/BiliCrawler-linux-aarch64.tar.gz">
+        <div>
+          <div class="name">免安装（ARM64）</div>
+          <div class="meta">aarch64.tar.gz · 20.1 MB</div>
+        </div>
+        <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 19h16"/></svg>
+      </a>
+    </article>
+
+  </section>
+
+  <section class="info" id="install">
+    <details open>
+      <summary>Windows 安装</summary>
+      <div class="body">
+        <p>双击 <code>BiliCrawler-Setup.exe</code>，向导里保持 FFmpeg 组件勾选，装完自动生成桌面与开始菜单快捷方式。</p>
+        <p>首次运行若弹出 SmartScreen「Windows 已保护你的电脑」，点 <b>更多信息 → 仍要运行</b>。安装包未做代码签名，属于正常提示。</p>
+      </div>
+    </details>
+
+    <details open>
+      <summary>macOS 安装</summary>
+      <div class="body">
+        <p>打开 dmg，把 <b>BiliCrawler</b> 拖进 Applications。首次启动在「应用程序」里 <b>右键 → 打开 → 再点打开</b>。</p>
+        <p>若提示「已损坏，无法打开」，终端执行一次：</p>
+        <div class="cmd">
+          <code>xattr -dr com.apple.quarantine /Applications/BiliCrawler.app</code>
+          <button type="button" data-copy="xattr -dr com.apple.quarantine /Applications/BiliCrawler.app">复制</button>
+        </div>
+        <p>安装包已内置 FFmpeg，不需要再装任何东西。</p>
+      </div>
+    </details>
+
+    <details open>
+      <summary>Linux 安装</summary>
+      <div class="body">
+        <p>Debian / Ubuntu 用 deb：</p>
+        <div class="cmd">
+          <code>sudo apt install ./bilicrawler_amd64.deb</code>
+          <button type="button" data-copy="sudo apt install ./bilicrawler_amd64.deb">复制</button>
+        </div>
+        <p>其它发行版用免安装包，解压后直接跑：</p>
+        <div class="cmd">
+          <code>tar -xzf BiliCrawler-linux-x86_64.tar.gz &amp;&amp; cd BiliCrawler-*-linux-x86_64 &amp;&amp; ./bilicrawler</code>
+          <button type="button" data-copy="tar -xzf BiliCrawler-linux-x86_64.tar.gz && cd BiliCrawler-*-linux-x86_64 && ./bilicrawler">复制</button>
+        </div>
+        <p>FFmpeg 需自行安装：<code>sudo apt install ffmpeg</code>（也可以打开程序后按提示自动下载）。</p>
+        <p class="warn">注意：包基于 Ubuntu 22.04 构建，要求 glibc ≥ 2.35。Ubuntu 20.04、Debian 11 等老系统需自行编译。</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>数据与配置放在哪</summary>
+      <div class="body">
+        <ul>
+          <li><b>Windows</b>：<code>%LOCALAPPDATA%\BiliCrawler</code>，默认下载到 <code>D:\BiliDownloads</code>（无 D 盘则用户目录）</li>
+          <li><b>macOS</b>：<code>~/Library/Application Support/BiliCrawler</code>，默认下载到 <code>~/Downloads/BiliDownloads</code></li>
+          <li><b>Linux</b>：<code>~/.local/share/BiliCrawler</code>，默认下载到 <code>~/Downloads/BiliDownloads</code></li>
+        </ul>
+        <p>Cookie 只保存在本机，不会上传到任何服务器。</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>系统要求</summary>
+      <div class="body">
+        <ul>
+          <li><b>Windows</b>：Windows 10 / 11，64 位</li>
+          <li><b>macOS</b>：macOS 11 Big Sur 及以上（Apple Silicon 或 Intel）</li>
+          <li><b>Linux</b>：glibc ≥ 2.35（Ubuntu 22.04+ / Debian 12+ / Fedora 36+），x86_64 或 ARM64</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>合规声明</summary>
+      <div class="body">
+        <p>本工具只访问 B 站 web 端公开接口，只处理公开可访问的普通投稿视频，<b>不涉及</b>付费课程、大会员专享、番剧版权内容。</p>
+        <p>请仅用于个人学习与备份，遵守《中华人民共和国著作权法》与 B 站用户协议，不要用于二次分发或商业用途。</p>
+      </div>
+    </details>
+  </section>
+
+  <footer>
+    <span>BiliCrawler v1.1.1</span>
+    <span>·</span>
+    <a href="https://github.com/biolmz/bili-crawler">源码</a>
+    <span>·</span>
+    <a href="https://github.com/biolmz/bili-crawler/blob/main/LICENSE">MIT License</a>
+    <span>·</span>
+    <span>内核 yt-dlp · FFmpeg (LGPL/GPL)</span>
+    <span class="spacer"></span>
+    <a href="https://github.com/biolmz/bili-crawler/issues">反馈问题</a>
+  </footer>
+
+</main>
+
+<script>
+(function () {
+  var BASE = "https://github.com/biolmz/bili-crawler/releases/latest/download/";
+
+  var files = {
+    win:    { name: "BiliCrawler-Setup.exe",               label: "Windows 安装版" },
+    macArm: { name: "BiliCrawler-macos-arm64.dmg",         label: "macOS（Apple Silicon）" },
+    macX64: { name: "BiliCrawler-macos-x86_64.dmg",        label: "macOS（Intel）" },
+    linX64: { name: "bilicrawler_amd64.deb",               label: "Linux（x86_64）" },
+    linArm: { name: "bilicrawler_arm64.deb",               label: "Linux（ARM64）" }
+  };
+
+  function detect() {
+    var ua = navigator.userAgent || "";
+    var p = navigator.platform || "";
+    var os = "other";
+    if (/Windows|Win32|Win64/i.test(ua) || /^Win/.test(p)) os = "win";
+    else if (/Mac OS X|Macintosh/i.test(ua)) os = "mac";
+    else if (/Android/i.test(ua)) os = "other";
+    else if (/Linux|X11|Ubuntu|Fedora/i.test(ua) || /Linux/.test(p)) os = "linux";
+    return { os: os, arm: false };
+  }
+
+  var d = detect();
+
+  // 有 User-Agent Client Hints 时能拿到真实架构（Chromium 系浏览器）
+  function withArch(cb) {
+    if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+      navigator.userAgentData.getHighEntropyValues(["architecture", "bitness"])
+        .then(function (v) {
+          d.arm = v.architecture === "arm";
+          cb();
+        })
+        .catch(cb);
+    } else {
+      cb();
+    }
+  }
+
+  function highlight() {
+    var card = null, file = null, note = "";
+
+    if (d.os === "win") {
+      card = document.getElementById("card-win");
+      file = files.win;
+      document.getElementById("winTag").hidden = false;
+      note = "Windows 10 / 11 64 位，安装包已含 FFmpeg";
+    } else if (d.os === "mac") {
+      card = document.getElementById("card-mac");
+      file = d.arm ? files.macArm : files.macX64;
+      note = d.arm ? "检测到 Apple Silicon" : "未识别到 Apple Silicon；M 系列芯片请选 arm64";
+      document.getElementById("macTag").hidden = false;
+    } else if (d.os === "linux") {
+      card = document.getElementById("card-linux");
+      file = d.arm ? files.linArm : files.linX64;
+      note = "Linux 需要 glibc ≥ 2.35，FFmpeg 需自行安装";
+      document.getElementById("linuxTag").hidden = false;
+    }
+
+    if (!card || !file) return;
+
+    card.classList.add("hl");
+    var btn = document.getElementById("recBtn");
+    document.getElementById("recText").textContent = "下载 " + file.label;
+    document.getElementById("recNote").textContent = note || "下载后按下方说明安装";
+    document.getElementById("rec").classList.add("on");
+    btn.addEventListener("click", function () {
+      window.location.href = BASE + file.name;
+    });
+  }
+
+  // 复制命令
+  document.querySelectorAll("[data-copy]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var txt = b.getAttribute("data-copy");
+      var done = function () {
+        var old = b.textContent;
+        b.textContent = "已复制";
+        setTimeout(function () { b.textContent = old; }, 1400);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).then(done, done);
+      } else {
+        var ta = document.createElement("textarea");
+        ta.value = txt; document.body.appendChild(ta); ta.select();
+        try { document.execCommand("copy"); } catch (e) {}
+        document.body.removeChild(ta);
+        done();
+      }
+    });
+  });
+
+  withArch(highlight);
+})();
+</script>
+</body>
+</html>

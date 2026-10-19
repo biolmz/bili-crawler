@@ -21,7 +21,7 @@ SetCompressor /SOLID lzma
 ShowInstDetails show
 ShowUninstDetails show
 
-VIProductVersion "1.1.0.0"
+VIProductVersion "1.1.1.0"
 VIAddVersionKey /LANG=2052 "ProductName"     "${APP_NAME}"
 VIAddVersionKey /LANG=2052 "FileDescription" "${APP_DESC}"
 VIAddVersionKey /LANG=2052 "FileVersion"     "${APP_VERSION}"
