@@ -36,9 +36,10 @@ BiliCrawler — macOS 安装说明
 
 关于 FFmpeg
 -----------
-合并高清晰度视频需要 FFmpeg。两种方式任选：
-   · 已装 Homebrew：brew install ffmpeg （程序会自动识别）
-   · 打开程序后点顶部「未检测到 FFmpeg」，按提示自动下载
+安装包**已内置 FFmpeg**（静态构建，来自 ffmpeg-static，GPL 许可），
+合并高清视频开箱即用，不需要再装任何东西。
+
+想改用系统版本也可以：brew install ffmpeg，删掉程序后重新打开即可识别。
 
 数据与配置位置
 --------------

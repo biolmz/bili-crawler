@@ -10,6 +10,7 @@ app.py — B站视频采集下载器（图形界面）
 
 from __future__ import annotations
 
+import gzip
 import json
 import os
 import platform
@@ -73,9 +74,14 @@ HOVER = "#f4f5f7"
 if IS_MAC:
     FONT = "PingFang SC"
     MONO = "Menlo"
-    FFMPEG_URL = "https://evermeet.cx/ffmpeg/getrelease/zip"
-    FFMPEG_PKG = "zip"
-    FFMPEG_PKG_HINT = "macOS（解压后得到单文件 ffmpeg）"
+    # 安装包内置了 ffmpeg；这里的下载源只作兜底（官方包缺失或被删时用）
+    _mac_asset = ("ffmpeg-darwin-arm64"
+                  if platform.machine().lower() in ("arm64", "aarch64")
+                  else "ffmpeg-darwin-x64")
+    FFMPEG_URL = ("https://github.com/eugeneware/ffmpeg-static/releases/download/"
+                  f"b6.1.1/{_mac_asset}.gz")
+    FFMPEG_PKG = "gz"
+    FFMPEG_PKG_HINT = "macOS 静态构建（约 20MB）"
 elif IS_LINUX:
     FONT = "Noto Sans CJK SC"
     MONO = "DejaVu Sans Mono"
@@ -151,7 +157,7 @@ def _resolve_fonts():
 
 
 def _extract_ffmpeg(pkg: str, dst: str, name: str) -> str:
-    """从 zip / tar.xz 里取出 ffmpeg 可执行文件，返回落地路径。"""
+    """从 zip / tar.xz / gz 里取出 ffmpeg 可执行文件，返回落地路径。"""
     target = os.path.join(dst, name)
     if pkg.endswith(".zip"):
         with zipfile.ZipFile(pkg) as z:
@@ -161,7 +167,10 @@ def _extract_ffmpeg(pkg: str, dst: str, name: str) -> str:
                 raise RuntimeError(f"压缩包内未找到 {name}")
             with z.open(hits[0]) as src, open(target, "wb") as out:
                 shutil.copyfileobj(src, out, 1048576)
-    else:
+    elif pkg.endswith(".gz"):
+        with gzip.open(pkg, "rb") as src, open(target, "wb") as out:
+            shutil.copyfileobj(src, out, 1048576)
+    elif pkg.endswith((".tar.xz", ".txz")):
         with tarfile.open(pkg, "r:xz") as t:
             hits = [m for m in t.getmembers()
                     if m.isfile() and os.path.basename(m.name) == name]
@@ -170,6 +179,8 @@ def _extract_ffmpeg(pkg: str, dst: str, name: str) -> str:
             src = t.extractfile(hits[0])
             with src, open(target, "wb") as out:
                 shutil.copyfileobj(src, out, 1048576)
+    else:
+        raise RuntimeError(f"不认识的压缩格式：{pkg}")
     if not IS_WIN:
         os.chmod(target, 0o755)
     return target
@@ -1130,6 +1141,8 @@ def main():
         app.update()
         app.destroy()
         print(f"self-test ok  v{APP_VERSION}  python {sys.version.split()[0]}  Tk {tk.TkVersion}")
+        print(f"ffmpeg: {app.ffmpeg_path or '(未检测到)'}")
+        print(f"data_dir: {data_dir()}")
         return
     App().mainloop()
 

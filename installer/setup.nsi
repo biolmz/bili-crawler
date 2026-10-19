@@ -7,7 +7,7 @@ Unicode true
 
 !define APP_NAME      "B站视频采集下载器"
 !define APP_ID        "BiliCrawler"
-!define APP_VERSION   "1.1.0"
+!define APP_VERSION   "1.1.1"
 !define APP_PUBLISHER "BiliCrawler"
 !define APP_EXE       "BiliCrawler.exe"
 !define APP_DESC      "B站公开数据采集与视频下载工具"

@@ -89,6 +89,36 @@ if [ ! -f assets/app.icns ]; then
   "$PY" gen_icon.py
 fi
 
+# --- 内置 FFmpeg -------------------------------------------------------------
+# 从 Finder 启动的 .app 不继承终端 PATH，Homebrew 的 ffmpeg 经常检测不到；
+# 直接把静态 ffmpeg 打进包里，用户装完就能用。想省体积：NO_BUNDLED_FFMPEG=1。
+FFMPEG_VER="b6.1.1"
+VENDOR="$HERE/vendor"
+mkdir -p "$VENDOR"
+if [ "${NO_BUNDLED_FFMPEG:-0}" = "1" ]; then
+  echo "按 NO_BUNDLED_FFMPEG=1 跳过内置 FFmpeg"
+elif [ -x "$VENDOR/ffmpeg" ]; then
+  echo "复用已下载的 $VENDOR/ffmpeg"
+else
+  case "$ARCH" in
+    arm64) ASSET="ffmpeg-darwin-arm64" ;;
+    *)     ASSET="ffmpeg-darwin-x64" ;;
+  esac
+  BASE="https://github.com/eugeneware/ffmpeg-static/releases/download/${FFMPEG_VER}"
+  echo "下载 FFmpeg：$ASSET"
+  curl -fL --retry 3 --connect-timeout 20 -o "$VENDOR/ffmpeg.gz" "$BASE/${ASSET}.gz"
+  gunzip -c "$VENDOR/ffmpeg.gz" > "$VENDOR/ffmpeg"
+  rm -f "$VENDOR/ffmpeg.gz"
+  chmod +x "$VENDOR/ffmpeg"
+  curl -fsL -o "$VENDOR/ffmpeg.LICENSE" "$BASE/${ASSET}.LICENSE" 2>/dev/null || true
+fi
+
+if [ -x "$VENDOR/ffmpeg" ]; then
+  echo "  $("$VENDOR/ffmpeg" -version 2>&1 | head -1)"
+else
+  echo "⚠ 未内置 FFmpeg：程序首次运行时需自行获取（brew install ffmpeg 或界面内下载）"
+fi
+
 # --- 构建 -------------------------------------------------------------------
 rm -rf build/macos dist/BiliCrawler.app dist/BiliCrawler
 echo "运行 PyInstaller …"
@@ -113,9 +143,17 @@ def has(frag):
 print("  可执行文件：", os.path.join("Contents", "MacOS", "BiliCrawler"))
 print("  Tcl/Tk 资源：", "已包含" if has("tcl") or has("tk") else "⚠ 未检测到")
 print("  yt-dlp 内核：", "已包含" if has("yt_dlp") else "⚠ 未检测到")
+ff = [p for p in bundled if os.path.basename(p) == "ffmpeg"]
+print("  内置 FFmpeg：", ff[0] if ff else "⚠ 未包含（用户需自行安装）")
 if not os.path.isfile(os.path.join(macos_dir, "BiliCrawler")):
     sys.exit("✗ Contents/MacOS/BiliCrawler 缺失")
 EOF
+
+# ffmpeg 必须真能执行（架构不匹配时这里就会暴露）
+FF_BIN="$(find "$APP" -type f -name ffmpeg -perm -111 2>/dev/null | head -1)"
+if [ -n "$FF_BIN" ]; then
+  echo "  验证内置 ffmpeg：$("$FF_BIN" -version 2>&1 | head -1)"
+fi
 
 # --- ad-hoc 签名（未做 Apple 公证，分发后首次打开需右键→打开） ---------------
 echo "ad-hoc 签名 …"

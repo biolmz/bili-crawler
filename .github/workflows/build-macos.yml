@@ -80,6 +80,11 @@ jobs:
           otool -L "$APP/Contents/MacOS/BiliCrawler" | grep -iE "tk|tcl" || true
           echo "--- Frameworks ---"
           ls "$APP/Contents/Frameworks" | head -20
+          echo "--- 内置 ffmpeg ---"
+          FF="$(find "$APP" -type f -name ffmpeg -perm -111 | head -1)"
+          if [ -z "$FF" ]; then echo "✗ 未找到内置 ffmpeg"; exit 1; fi
+          file "$FF"
+          "$FF" -version | head -2
           codesign --verify --deep --strict "$APP" && echo "codesign ok"
 
       - name: 启动自检（真正建一次窗口）

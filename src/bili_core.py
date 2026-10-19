@@ -17,6 +17,7 @@ B站（bilibili）公开数据采集 与 视频下载 核心模块。
 
 from __future__ import annotations
 
+import glob
 import hashlib
 import json
 import os
@@ -38,7 +39,7 @@ import requests
 # --------------------------------------------------------------------------
 
 APP_NAME = "BiliCrawler"
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.1.1"
 
 # 平台判定：Windows / macOS / 其它（Linux）共用同一套代码，差异集中在路径与外部程序名
 IS_WIN = sys.platform.startswith("win")
@@ -214,20 +215,26 @@ def find_ffmpeg() -> str:
         return which
 
     if IS_WIN:
-        common = (
+        common = [
             r"C:\ffmpeg\bin\ffmpeg.exe",
             r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
             r"D:\ffmpeg\bin\ffmpeg.exe",
             os.path.expanduser(r"~\scoop\shims\ffmpeg.exe"),
-        )
+        ]
     elif IS_MAC:
-        common = (
-            "/opt/homebrew/bin/ffmpeg",
-            "/usr/local/bin/ffmpeg",
-            "/Applications/ffmpeg",
-        )
+        # 从 Finder 启动的 .app 拿不到终端 PATH，Homebrew 目录必须逐个探测
+        common = [
+            "/opt/homebrew/bin/ffmpeg",      # Apple Silicon Homebrew
+            "/usr/local/bin/ffmpeg",         # Intel Homebrew
+            "/opt/local/bin/ffmpeg",         # MacPorts
+            os.path.expanduser("~/.local/bin/ffmpeg"),
+        ]
+        # brew 装了但没 link 的情况，直接进 Cellar 找
+        for pat in ("/opt/homebrew/Cellar/ffmpeg/*/bin/ffmpeg",
+                    "/usr/local/Cellar/ffmpeg/*/bin/ffmpeg"):
+            common += sorted(glob.glob(pat), reverse=True)
     else:
-        common = ("/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg")
+        common = ["/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/snap/bin/ffmpeg"]
     for p in common:
         if os.path.isfile(p):
             return p
