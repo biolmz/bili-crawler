@@ -1062,6 +1062,14 @@ def main():
     argv = sys.argv[1:]
     if argv and argv[0] in ("--cli", "cli"):
         sys.exit(run_cli(argv[1:]))
+    if argv and argv[0] == "--self-test":
+        # 冒烟测试：真正把窗口建起来再销毁，验证 Tk 运行时可用（CI 用）
+        app = App()
+        app.update_idletasks()
+        app.update()
+        app.destroy()
+        print(f"self-test ok  v{APP_VERSION}  python {sys.version.split()[0]}  Tk {tk.TkVersion}")
+        return
     App().mainloop()
 
 

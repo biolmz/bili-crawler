@@ -82,6 +82,22 @@ jobs:
           ls "$APP/Contents/Frameworks" | head -20
           codesign --verify --deep --strict "$APP" && echo "codesign ok"
 
+      - name: 启动自检（真正建一次窗口）
+        continue-on-error: true
+        run: |
+          # macOS 没有 GNU timeout，用 python 包一层超时
+          "$PYTHON" - <<'EOF'
+          import subprocess, sys
+          exe = "dist/BiliCrawler.app/Contents/MacOS/BiliCrawler"
+          try:
+              p = subprocess.run([exe, "--self-test"], capture_output=True, text=True, timeout=90)
+              print("exit:", p.returncode)
+              print(p.stdout.strip())
+              print(p.stderr.strip()[-1500:])
+          except subprocess.TimeoutExpired:
+              print("self-test 超时（可能卡在窗口创建）")
+          EOF
+
       - name: 上传 dmg
         uses: actions/upload-artifact@v4
         with:
