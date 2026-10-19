@@ -34,11 +34,19 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: 安装 Python 与 Tk
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
         run: |
-          brew install python@3.12 python-tk@3.12
-          PY="$(brew --prefix python@3.12)/bin/python3.12"
-          echo "PYTHON=$PY" >> "$GITHUB_ENV"
-          "$PY" -c "import tkinter, sys; print(sys.version); print('Tk', tkinter.TkVersion)"
+          # runner 上可能已存在 python@3.12，link 冲突不算失败，后面会验证 tkinter
+          brew install python@3.12 python-tk@3.12 || true
+          brew link --overwrite --force python@3.12 tcl-tk 2>/dev/null || true
+          brew list --versions python@3.12 python-tk@3.12 || true
+
+          P="$(brew --prefix python@3.12)/bin"
+          echo "$P" >> "$GITHUB_PATH"
+          echo "PYTHON=$P/python3.12" >> "$GITHUB_ENV"
+          "$P/python3.12" -c "import tkinter, sys; print(sys.version.split()[0], '| Tk', tkinter.TkVersion)"
 
       - name: 构建 .app 与 .dmg
         run: bash packaging/macos/build_macos.sh --dmg

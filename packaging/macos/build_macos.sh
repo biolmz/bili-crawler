@@ -36,13 +36,6 @@ if ! command -v "$PY" >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! "$PY" -c "import tkinter" >/dev/null 2>&1; then
-  echo "✗ 当前 Python 缺少 tkinter，GUI 打不出来。" >&2
-  echo "  Homebrew：brew install python-tk@3.12" >&2
-  echo "  官网安装包（python.org）：自带 Tcl/Tk，可直接用。" >&2
-  exit 1
-fi
-
 ARCH="$(uname -m)"                      # arm64 / x86_64
 VERSION="$("$PY" - <<'EOF'
 import re, io
@@ -53,15 +46,42 @@ EOF
 
 echo "== BiliCrawler $VERSION / macOS $ARCH =="
 
+# --- 依赖环境：默认建独立 venv ----------------------------------------------
+# Homebrew 的 Python 是 externally-managed，直接 pip install 会被拒绝；
+# 用 venv 隔离，同时 venv 会继承基础解释器的 tkinter。
+if [ "${USE_SYSTEM_PY:-0}" = "1" ]; then
+  RUNDIR_PY="$PY"
+else
+  VENV="$ROOT/build/venv-macos-$ARCH"
+  if [ ! -x "$VENV/bin/python" ]; then
+    echo "创建虚拟环境：$VENV"
+    rm -rf "$VENV"
+    "$PY" -m venv "$VENV"
+  fi
+  RUNDIR_PY="$VENV/bin/python"
+fi
+
+if ! "$RUNDIR_PY" -c "import tkinter" >/dev/null 2>&1; then
+  echo "✗ 运行环境缺少 tkinter，GUI 打不出来。" >&2
+  echo "  Homebrew：brew install python@3.12 python-tk@3.12" >&2
+  echo "  官网安装包（python.org）：自带 Tcl/Tk，可直接用。" >&2
+  exit 1
+fi
+
+echo "Python：$RUNDIR_PY"
+"$RUNDIR_PY" -c "import sys, tkinter; print(' ', sys.version.split()[0], '| Tk', tkinter.TkVersion)"
+
 # --- 依赖 -------------------------------------------------------------------
-"$PY" - <<'EOF'
-import importlib, subprocess, sys
+"$RUNDIR_PY" - <<'EOF'
+import importlib.util, subprocess, sys
 need = [m for m in ("requests", "yt_dlp", "PyInstaller") if importlib.util.find_spec(m) is None]
 if need:
     print("安装依赖：", ", ".join(need))
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade",
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "-q",
                            "pip", "requests", "yt-dlp", "pyinstaller"])
 EOF
+
+PY="$RUNDIR_PY"
 
 # --- 图标 -------------------------------------------------------------------
 if [ ! -f assets/app.icns ]; then
