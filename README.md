@@ -1,8 +1,8 @@
 # BiliCrawler · B站视频采集下载器
 
-> Windows / macOS 桌面工具。**先解析、再勾选、最后下载**——粘贴链接后先看到完整清单，确认无误才动手。
+> Windows / macOS / Linux 桌面工具。**先解析、再勾选、最后下载**——粘贴链接后先看到完整清单，确认无误才动手。
 
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20·%20macOS%2011%2B-0078D4?logo=apple)](https://github.com/biolmz/bili-crawler/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D4?logo=linux)](https://github.com/biolmz/bili-crawler/releases)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![GUI](https://img.shields.io/badge/GUI-tkinter-ff69b4)](https://docs.python.org/3/library/tkinter.html)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -29,7 +29,7 @@
 
 ## 它是什么
 
-一个 tkinter 写的跨平台桌面小工具（Windows / macOS），做两件事：
+一个 tkinter 写的跨平台桌面小工具（Windows / macOS / Linux），做两件事：
 
 1. **下载** B 站公开投稿视频（含分P、UP 主投稿批量）
 2. **采集** 公开数据：视频信息 / 评论 / 弹幕，输出 JSON
@@ -118,6 +118,26 @@ xattr -dr com.apple.quarantine /Applications/BiliCrawler.app
 > macOS 上 FFmpeg 推荐 `brew install ffmpeg`，程序会自动识别 `/opt/homebrew/bin/ffmpeg`；
 > 也可以打开程序后点顶部「未检测到 FFmpeg」按提示自动下载。
 > 配置与 Cookie 存在 `~/Library/Application Support/BiliCrawler`，默认下载到 `~/Downloads/BiliDownloads`。
+
+### Linux 安装（.deb / tar.gz）
+
+到 [Releases](https://github.com/biolmz/bili-crawler/releases) 按发行版下载：
+
+| 系统 | 文件 | 安装 |
+|---|---|---|
+| Ubuntu / Debian（x86_64） | `bilicrawler_x.x.x_amd64.deb` | `sudo apt install ./bilicrawler_x.x.x_amd64.deb` |
+| Ubuntu / Debian（ARM64） | `bilicrawler_x.x.x_arm64.deb` | 同上，换成 arm64 文件 |
+| 其它发行版 / 免安装 | `BiliCrawler-x.x.x-linux-x86_64.tar.gz` | 解压后 `./bilicrawler` |
+
+deb 会装到 `/opt/bilicrawler`，同时注册 `bilicrawler` 命令、桌面图标与开始菜单项。
+
+```bash
+sudo apt install ffmpeg      # FFmpeg（合并高清必备）
+```
+
+> 构建基于 Ubuntu 22.04（glibc 2.35），适用于 Ubuntu 22.04+ / Debian 12+ / Fedora 36+。
+> 更老的系统（如 Ubuntu 20.04）请参考 [docs/linux-build.md](docs/linux-build.md) 自行编译。
+> 配置与 Cookie 存在 `~/.local/share/BiliCrawler`，默认下载到 `~/Downloads/BiliDownloads`。
 
 ### 方式二：免安装绿色版
 
@@ -258,6 +278,24 @@ bash packaging/macos/build_macos.sh --dmg
 > 构建包只做 ad-hoc 签名、未做 Apple 公证，用户首次打开需右键 → 打开。
 > 想彻底免提示，需要在 CI 里注入 Apple Developer 证书做 `codesign` + `notarytool` 公证。
 
+### Linux 打包（.deb / tar.gz）
+
+```bash
+sudo apt install python3 python3-venv python3-tk     # Fedora: python3-tkinter / Arch: tk
+bash packaging/linux/build_linux.sh                  # 默认同时出 tar.gz 和 deb
+```
+
+产物：
+
+- `dist/BiliCrawler-<版本>-linux-<arch>.tar.gz`（免安装，解压后 `./bilicrawler`）
+- `dist/bilicrawler_<版本>_<amd64|arm64>.deb`
+
+deb 装到 `/opt/bilicrawler`，注册 `bilicrawler` 命令、桌面图标与菜单项。
+CI 见 `.github/workflows/build-linux.yml`（Ubuntu x86_64 + ARM64 双架构）。
+
+> 产物基于 Ubuntu 22.04 构建，要求 **glibc ≥ 2.35**（Ubuntu 22.04+/Debian 12+/Fedora 36+）。
+> 老系统需自行编译，细节见 [docs/linux-build.md](docs/linux-build.md)。
+
 ### 自测
 
 ```bash
@@ -343,17 +381,27 @@ bili-crawler/
 │  ├─ build_macos.sh      一键构建 .app（可选 --dmg）
 │  ├─ make_dmg.sh         hdiutil 生成拖拽式安装镜像
 │  └─ vendor/             可选：放静态 ffmpeg，会一起打进 .app
+├─ packaging/linux/
+│  ├─ BiliCrawler-linux.spec  PyInstaller 的 onedir 打包配置
+│  ├─ build_linux.sh      一键构建 tar.gz + deb（可 --tar / --deb）
+│  ├─ bilicrawler.desktop 桌面菜单项
+│  └─ vendor/             可选：放静态 ffmpeg，会一起打进包
 ├─ .github/workflows/
-│  └─ build-macos.yml     macOS 双架构自动构建（arm64 / Intel）
+│  ├─ build-macos.yml     macOS 双架构自动构建（arm64 / Intel）
+│  └─ build-linux.yml     Linux 双架构自动构建（x86_64 / aarch64）
 ├─ assets/
 │  ├─ app.ico             程序图标（gen_icon.py 生成）
 │  ├─ app.icns            macOS 图标（gen_icon.py 生成）
+│  ├─ app.png             Linux 图标（gen_icon.py 生成）
 │  ├─ ui-preview.png      界面截图（README 用）
 │  └─ ffmpeg/bin/         FFmpeg（构建时一并部署，非 PyInstaller 内嵌）
 ├─ tools/nsis-3.10/       NSIS 编译器（便携版）
-├─ gen_icon.py            纯标准库生成 ICO
+├─ gen_icon.py            纯标准库生成 ico / icns / png
 ├─ test_core.py           核心模块自测
 ├─ 使用说明.html          图文使用手册
+├─ docs/
+│  ├─ macos-build.md      macOS 打包细节
+│  └─ linux-build.md      Linux 打包细节（含 glibc 兼容表）
 ├─ LICENSE                代码 MIT 许可
 ├─ LICENSE.txt            使用免责声明（GBK，安装包向导的许可页）
 └─ DISCLAIMER.md          使用免责声明（UTF-8，内容与 LICENSE.txt 一致）
