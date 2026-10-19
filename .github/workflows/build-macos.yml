@@ -28,12 +28,15 @@ jobs:
         include:
           - os: macos-14         # Apple Silicon
             arch: arm64
+            py: brew
           - os: macos-15-intel   # Intel
             arch: x86_64
+            py: setup-python
     steps:
       - uses: actions/checkout@v4
 
-      - name: 安装 Python 与 Tk
+      - name: 安装 Python 与 Tk（Homebrew，arm64）
+        if: matrix.py == 'brew'
         env:
           HOMEBREW_NO_AUTO_UPDATE: "1"
           HOMEBREW_NO_INSTALL_CLEANUP: "1"
@@ -46,7 +49,25 @@ jobs:
           P="$(brew --prefix python@3.12)/bin"
           echo "$P" >> "$GITHUB_PATH"
           echo "PYTHON=$P/python3.12" >> "$GITHUB_ENV"
-          "$P/python3.12" -c "import tkinter, sys; print(sys.version.split()[0], '| Tk', tkinter.TkVersion)"
+
+      - name: 安装 Python 与 Tk（python.org 官方构建，Intel）
+        if: matrix.py == 'setup-python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: x64
+
+      - name: 校验 tkinter
+        shell: bash
+        run: |
+          if [ "${{ matrix.py }}" = "setup-python" ]; then
+            PY="$(python -c 'import sys; print(sys.executable)')"
+            echo "PYTHON=$PY" >> "$GITHUB_ENV"
+          else
+            PY="$PYTHON"
+          fi
+          echo "使用解释器：$PY"
+          "$PY" -c "import tkinter, sys; print(sys.version.split()[0], '| Tk', tkinter.TkVersion)"
 
       - name: 构建 .app 与 .dmg
         run: bash packaging/macos/build_macos.sh --dmg
